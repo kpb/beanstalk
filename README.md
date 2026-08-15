@@ -1,3 +1,5 @@
+<img src="beanstalk.jpg" alt="Beanstalk" width="720">
+
 # Beanstalk
 
 Beanstalk is an independent, terminal-native implementation of the [Beans](https://github.com/hmans/beans) task
