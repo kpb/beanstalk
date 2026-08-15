@@ -34,6 +34,15 @@ This creates `.beans/`, `.beans/.gitignore`, and `.beans.yml`. It refuses to ove
 The generated `.beans.yml` includes the current Beans configuration structure for compatibility. Beanstalk currently
 ignores the worktree, agent, and server settings.
 
+Create a task using the configured defaults:
+
+```bash
+beanstalk create "Add login"
+```
+
+Use `--status`, `--type`, `--priority`, `--body`, and repeatable `--tag` flags to set initial metadata. Pass `--json`
+to emit the created bean as JSON for scripts and coding agents.
+
 ## Development
 
 Requires Go 1.26 or newer.
