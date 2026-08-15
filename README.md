@@ -43,6 +43,14 @@ beanstalk create "Add login"
 Use `--status`, `--type`, `--priority`, `--body`, and repeatable `--tag` flags to set initial metadata. Pass `--json`
 to emit the created bean as JSON for scripts and coding agents.
 
+List tasks, optionally filtering by status or type:
+
+```bash
+beanstalk list --status todo
+```
+
+Pass `--json` to emit a JSON array for scripts and coding agents.
+
 ## Development
 
 Requires Go 1.26 or newer.

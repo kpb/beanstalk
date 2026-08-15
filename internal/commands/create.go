@@ -11,8 +11,8 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/kpb/beanstalk/internal/beans"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 const defaultBeanStatus = "todo"
@@ -23,28 +23,6 @@ var (
 	beanTypes      = map[string]bool{"milestone": true, "epic": true, "bug": true, "feature": true, "task": true}
 	beanPriorities = map[string]bool{"critical": true, "high": true, "normal": true, "low": true, "deferred": true}
 )
-
-type beansConfig struct {
-	Beans struct {
-		Path          string `yaml:"path"`
-		Prefix        string `yaml:"prefix"`
-		IDLength      int    `yaml:"id_length"`
-		DefaultStatus string `yaml:"default_status"`
-		DefaultType   string `yaml:"default_type"`
-	} `yaml:"beans"`
-}
-
-type createdBean struct {
-	ID        string    `json:"id"`
-	Title     string    `json:"title"`
-	Status    string    `json:"status"`
-	Type      string    `json:"type"`
-	Priority  string    `json:"priority,omitempty"`
-	Tags      []string  `json:"tags,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Path      string    `json:"path"`
-}
 
 type createOptions struct {
 	status   string
@@ -74,9 +52,9 @@ func newCreateCommand() *cobra.Command {
 
 			if options.json {
 				return json.NewEncoder(command.OutOrStdout()).Encode(struct {
-					Success bool        `json:"success"`
-					Bean    createdBean `json:"bean"`
-					Message string      `json:"message"`
+					Success bool       `json:"success"`
+					Bean    beans.Bean `json:"bean"`
+					Message string     `json:"message"`
 				}{true, bean, "Bean created"})
 			}
 
@@ -93,10 +71,10 @@ func newCreateCommand() *cobra.Command {
 	return command
 }
 
-func createBean(workingDirectory, title string, options createOptions) (createdBean, error) {
-	config, err := loadBeansConfig(workingDirectory)
+func createBean(workingDirectory, title string, options createOptions) (beans.Bean, error) {
+	config, err := beans.LoadConfig(workingDirectory)
 	if err != nil {
-		return createdBean{}, err
+		return beans.Bean{}, err
 	}
 	if title == "" {
 		title = "Untitled"
@@ -110,7 +88,7 @@ func createBean(workingDirectory, title string, options createOptions) (createdB
 		status = defaultBeanStatus
 	}
 	if !beanStatuses[status] {
-		return createdBean{}, fmt.Errorf("invalid status %q", status)
+		return beans.Bean{}, fmt.Errorf("invalid status %q", status)
 	}
 
 	typeName := options.typeName
@@ -121,26 +99,15 @@ func createBean(workingDirectory, title string, options createOptions) (createdB
 		typeName = defaultBeanType
 	}
 	if !beanTypes[typeName] {
-		return createdBean{}, fmt.Errorf("invalid type %q", typeName)
+		return beans.Bean{}, fmt.Errorf("invalid type %q", typeName)
 	}
 	if options.priority != "" && !beanPriorities[options.priority] {
-		return createdBean{}, fmt.Errorf("invalid priority %q", options.priority)
+		return beans.Bean{}, fmt.Errorf("invalid priority %q", options.priority)
 	}
 
-	beansPath := config.Beans.Path
-	if beansPath == "" {
-		beansPath = ".beans"
-	}
-	if !filepath.IsAbs(beansPath) {
-		beansPath = filepath.Join(workingDirectory, beansPath)
-	}
-	if info, err := os.Stat(beansPath); err != nil {
-		if os.IsNotExist(err) {
-			return createdBean{}, errors.New("Beans project is not initialized; run beanstalk init first")
-		}
-		return createdBean{}, fmt.Errorf("checking beans directory: %w", err)
-	} else if !info.IsDir() {
-		return createdBean{}, fmt.Errorf("beans path is not a directory: %s", beansPath)
+	beansPath, err := beans.Directory(workingDirectory, config)
+	if err != nil {
+		return beans.Bean{}, err
 	}
 
 	idLength := config.Beans.IDLength
@@ -148,13 +115,13 @@ func createBean(workingDirectory, title string, options createOptions) (createdB
 		idLength = 4
 	}
 	if idLength < 1 {
-		return createdBean{}, fmt.Errorf("invalid beans.id_length %d", idLength)
+		return beans.Bean{}, fmt.Errorf("invalid beans.id_length %d", idLength)
 	}
 	now := time.Now().UTC().Truncate(time.Second)
 	for range 10 {
 		id, err := newBeanID(config.Beans.Prefix, idLength)
 		if err != nil {
-			return createdBean{}, err
+			return beans.Bean{}, err
 		}
 		slug := beanSlug(title)
 		name := id + "--" + slug + ".md"
@@ -162,44 +129,28 @@ func createBean(workingDirectory, title string, options createOptions) (createdB
 			name = id + ".md"
 		}
 		path := filepath.Join(beansPath, name)
-		bean := createdBean{ID: id, Title: title, Status: status, Type: typeName, Priority: options.priority, Tags: options.tags, CreatedAt: now, UpdatedAt: now, Path: name}
-		contents, err := renderBean(bean, options.body)
+		bean := beans.Bean{ID: id, Slug: slug, Title: title, Status: status, Type: typeName, Priority: options.priority, Tags: options.tags, CreatedAt: now, UpdatedAt: now, Path: name, Body: options.body}
+		contents, err := beans.Render(bean)
 		if err != nil {
-			return createdBean{}, err
+			return beans.Bean{}, err
 		}
 		file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 		if err == nil {
 			_, writeErr := file.Write(contents)
 			closeErr := file.Close()
 			if writeErr != nil {
-				return createdBean{}, fmt.Errorf("writing bean: %w", writeErr)
+				return beans.Bean{}, fmt.Errorf("writing bean: %w", writeErr)
 			}
 			if closeErr != nil {
-				return createdBean{}, fmt.Errorf("closing bean: %w", closeErr)
+				return beans.Bean{}, fmt.Errorf("closing bean: %w", closeErr)
 			}
 			return bean, nil
 		}
 		if !errors.Is(err, os.ErrExist) {
-			return createdBean{}, fmt.Errorf("creating bean: %w", err)
+			return beans.Bean{}, fmt.Errorf("creating bean: %w", err)
 		}
 	}
-	return createdBean{}, errors.New("could not generate a unique bean ID")
-}
-
-func loadBeansConfig(workingDirectory string) (beansConfig, error) {
-	path := filepath.Join(workingDirectory, ".beans.yml")
-	contents, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return beansConfig{}, errors.New("Beans project is not initialized; run beanstalk init first")
-		}
-		return beansConfig{}, fmt.Errorf("reading .beans.yml: %w", err)
-	}
-	var config beansConfig
-	if err := yaml.Unmarshal(contents, &config); err != nil {
-		return beansConfig{}, fmt.Errorf("parsing .beans.yml: %w", err)
-	}
-	return config, nil
+	return beans.Bean{}, errors.New("could not generate a unique bean ID")
 }
 
 func newBeanID(prefix string, length int) (string, error) {
@@ -227,22 +178,4 @@ func beanSlug(title string) string {
 		}
 	}
 	return strings.Trim(strings.TrimSpace(slug.String()), "-")
-}
-
-func renderBean(bean createdBean, body string) ([]byte, error) {
-	frontMatter := struct {
-		Title     string    `yaml:"title"`
-		Status    string    `yaml:"status"`
-		Type      string    `yaml:"type"`
-		Priority  string    `yaml:"priority,omitempty"`
-		Tags      []string  `yaml:"tags,omitempty"`
-		CreatedAt time.Time `yaml:"created_at"`
-		UpdatedAt time.Time `yaml:"updated_at"`
-	}{bean.Title, bean.Status, bean.Type, bean.Priority, bean.Tags, bean.CreatedAt, bean.UpdatedAt}
-	metadata, err := yaml.Marshal(frontMatter)
-	if err != nil {
-		return nil, fmt.Errorf("encoding bean metadata: %w", err)
-	}
-	contents := fmt.Sprintf("---\n# %s\n%s---\n%s", bean.ID, metadata, body)
-	return []byte(strings.TrimRight(contents, "\n") + "\n"), nil
 }

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/kpb/beanstalk/internal/beans"
 	"gopkg.in/yaml.v3"
 )
 
@@ -62,9 +63,9 @@ func TestCreateCommandJSON(t *testing.T) {
 		t.Fatalf("executing create command: %v", err)
 	}
 	var response struct {
-		Success bool        `json:"success"`
-		Bean    createdBean `json:"bean"`
-		Message string      `json:"message"`
+		Success bool       `json:"success"`
+		Bean    beans.Bean `json:"bean"`
+		Message string     `json:"message"`
 	}
 	if err := json.Unmarshal(output.Bytes(), &response); err != nil {
 		t.Fatalf("decoding JSON output: %v\n%s", err, output.String())
@@ -103,7 +104,7 @@ func initializedProject(t *testing.T) string {
 }
 
 func TestRenderBeanIsValidYAML(t *testing.T) {
-	contents, err := renderBean(createdBean{ID: "test-a1b2", Title: "Test", Status: "todo", Type: "task"}, "")
+	contents, err := beans.Render(beans.Bean{ID: "test-a1b2", Title: "Test", Status: "todo", Type: "task"})
 	if err != nil {
 		t.Fatalf("rendering bean: %v", err)
 	}
