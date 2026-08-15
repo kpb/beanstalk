@@ -1,5 +1,10 @@
 <img src="beanstalk.jpg" alt="Beanstalk" width="720">
 
+[![License](https://img.shields.io/github/license/kpb/beanstalk)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/kpb/beanstalk)](https://github.com/kpb/beanstalk/releases/latest)
+[![Tests](https://github.com/kpb/beanstalk/actions/workflows/test.yml/badge.svg)](https://github.com/kpb/beanstalk/actions/workflows/test.yml)
+[![Go version](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go)](go.mod)
+
 # Beanstalk
 
 Beanstalk is an independent, terminal-native implementation of the [Beans](https://github.com/hmans/beans) task
