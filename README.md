@@ -9,7 +9,7 @@
 
 Beanstalk is an independent, terminal-native implementation of the [Beans](https://github.com/hmans/beans) task
 format. It stores tasks as Markdown files with YAML front matter, keeping project work readable, reviewable, and version
-controlled alongside source code. I works equally well for an individual developer, a team, and coding agents.
+controlled alongside source code. It works equally well for an individual developer, a team, and coding agents.
 
 The project is in its initial development stage. The first release will provide a Cobra-based CLI and a first-class
 Bubble Tea terminal UI, with text and JSON output. It will read and write the current Beans on-disk format without
@@ -28,6 +28,11 @@ Initialize a project with the current Beans on-disk layout:
 ```bash
 beanstalk init
 ```
+
+This creates `.beans/`, `.beans/.gitignore`, and `.beans.yml`. It refuses to overwrite an existing path.
+
+The generated `.beans.yml` includes the current Beans configuration structure for compatibility. Beanstalk currently
+ignores the worktree, agent, and server settings.
 
 ## Development
 

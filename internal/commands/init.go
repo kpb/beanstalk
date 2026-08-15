@@ -72,6 +72,7 @@ func pathExists(path string) bool {
 }
 
 func baseRef(workingDirectory string) string {
+	// Match Beans' default while still allowing initialization outside a Git repository.
 	output, err := exec.Command("git", "-C", workingDirectory, "symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD").Output()
 	if err != nil {
 		return "main"
