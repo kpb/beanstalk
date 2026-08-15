@@ -1,0 +1,29 @@
+// Package commands contains the Beanstalk command-line interface.
+package commands
+
+import "github.com/spf13/cobra"
+
+const version = "0.0.0-dev"
+
+// NewRootCommand constructs the top-level Beanstalk command.
+func NewRootCommand() *cobra.Command {
+	command := &cobra.Command{
+		Use:           "beanstalk",
+		Short:         "A terminal-native tracker for Beans-format tasks",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+	}
+
+	command.AddCommand(newVersionCommand())
+	return command
+}
+
+func newVersionCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "version",
+		Short: "Print the Beanstalk version",
+		Run: func(command *cobra.Command, args []string) {
+			command.Println(version)
+		},
+	}
+}
