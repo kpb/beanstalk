@@ -21,6 +21,14 @@ I enjoy using the Beans project. But, the TUI is missing some features that I'd 
 TUI is not a priority and it may move in another direction entirely. Rather than fork the project, I decided to create a
 TUI forward version.
 
+## Use
+
+Initialize a project with the current Beans on-disk layout:
+
+```bash
+beanstalk init
+```
+
 ## Development
 
 Requires Go 1.26 or newer.
