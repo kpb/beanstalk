@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestLoadParsesNestedBeansAndDefaultsLegacyFields(t *testing.T) {
@@ -20,7 +21,7 @@ func TestLoadParsesNestedBeansAndDefaultsLegacyFields(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("creating archive directory: %v", err)
 	}
-	contents := "---\ntitle: Legacy bean\nstatus: todo\n---\nBody\n"
+	contents := "---\ntitle: Legacy bean\nstatus: todo\ncreated_at: 2026-08-15T12:00:00Z\nupdated_at: 2026-08-15T13:00:00Z\n---\nBody\n"
 	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
 		t.Fatalf("writing bean: %v", err)
 	}
@@ -33,7 +34,7 @@ func TestLoadParsesNestedBeansAndDefaultsLegacyFields(t *testing.T) {
 		t.Fatalf("loaded beans = %d, want 1", len(loaded))
 	}
 	bean := loaded[0]
-	if bean.ID != "project-a1" || bean.Slug != "legacy" || bean.Path != "archive/project-a1--legacy.md" || bean.Type != "task" || bean.Priority != "normal" || len(bean.Tags) != 0 || bean.Body != "Body" || bean.CreatedAt.IsZero() || bean.UpdatedAt.IsZero() {
+	if bean.ID != "project-a1" || bean.Slug != "legacy" || bean.Path != "archive/project-a1--legacy.md" || bean.Type != "task" || bean.Priority != "normal" || len(bean.Tags) != 0 || bean.Body != "Body" || !bean.CreatedAt.Equal(time.Date(2026, time.August, 15, 12, 0, 0, 0, time.UTC)) || !bean.UpdatedAt.Equal(time.Date(2026, time.August, 15, 13, 0, 0, 0, time.UTC)) {
 		t.Errorf("loaded bean = %#v", bean)
 	}
 }

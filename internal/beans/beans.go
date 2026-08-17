@@ -25,17 +25,17 @@ type Config struct {
 }
 
 type Bean struct {
-	ID        string    `json:"id"`
-	Slug      string    `json:"slug,omitempty"`
-	Path      string    `json:"path"`
-	Title     string    `json:"title"`
-	Status    string    `json:"status"`
-	Type      string    `json:"type,omitempty"`
-	Priority  string    `json:"priority,omitempty"`
-	Tags      []string  `json:"tags,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Body      string    `json:"body,omitempty"`
+	ID        string    `json:"id" yaml:"-"`
+	Slug      string    `json:"slug,omitempty" yaml:"-"`
+	Path      string    `json:"path" yaml:"-"`
+	Title     string    `json:"title" yaml:"title"`
+	Status    string    `json:"status" yaml:"status"`
+	Type      string    `json:"type,omitempty" yaml:"type"`
+	Priority  string    `json:"priority,omitempty" yaml:"priority"`
+	Tags      []string  `json:"tags,omitempty" yaml:"tags"`
+	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" yaml:"updated_at"`
+	Body      string    `json:"body,omitempty" yaml:"-"`
 }
 
 func LoadConfig(workingDirectory string) (Config, error) {

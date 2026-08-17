@@ -51,6 +51,20 @@ beanstalk list --status todo
 
 Pass `--json` to emit a JSON array for scripts and coding agents.
 
+Update a task's status by ID:
+
+```bash
+beanstalk update project-a1b2 --status in-progress
+beanstalk update project-a1b2 --status completed --json
+```
+
+An agent can list available work with `beanstalk list --status todo --json`, then atomically claim it before working:
+
+```bash
+beanstalk claim project-a1b2 --json
+beanstalk update project-a1b2 --status completed
+```
+
 ## Development
 
 Requires Go 1.26 or newer.
