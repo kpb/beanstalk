@@ -51,6 +51,13 @@ beanstalk list --status todo
 
 Pass `--json` to emit a JSON array for scripts and coding agents.
 
+Show a task, including its Markdown body:
+
+```bash
+beanstalk show project-a1b2
+beanstalk show project-a1b2 --json
+```
+
 Update a task's status by ID:
 
 ```bash
@@ -62,6 +69,7 @@ An agent can list available work with `beanstalk list --status todo --json`, the
 
 ```bash
 beanstalk claim project-a1b2 --json
+beanstalk show project-a1b2 --json
 beanstalk update project-a1b2 --status completed
 ```
 
