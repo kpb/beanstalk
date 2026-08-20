@@ -34,6 +34,15 @@ This creates `.beans/`, `.beans/.gitignore`, and `.beans.yml`. It refuses to ove
 The generated `.beans.yml` includes the current Beans configuration structure for compatibility. Beanstalk currently
 ignores the worktree, agent, and server settings.
 
+Print the built-in instructions for coding agents:
+
+```bash
+beanstalk prime
+```
+
+This also works outside an initialized project. To use project-specific instructions, create `.beanstalk.yaml` in the
+current directory with a `prime.instructions` string; Beanstalk emits that string instead of the built-in instructions.
+
 Create a task using the configured defaults:
 
 ```bash
