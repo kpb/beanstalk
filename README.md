@@ -15,10 +15,35 @@ Beanstalk currently provides a Cobra-based CLI with text and JSON output. An int
 planned. It reads and writes the current Beans on-disk format without bundling Beans' web, server, GraphQL, agent, or
 worktree features.
 
+## Architecture Decisions
+
+See [Architecture Decision Records](docs/adr/) for the project's durable technical decisions.
+
 ## Install
 
-Download the archive for your platform from the [latest release](https://github.com/kpb/beanstalk/releases/latest),
-extract it, and place `beanstalk` on your `PATH`. Verify the download with the release's `checksums.txt` file.
+Install the latest release on Linux or macOS:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/kpb/beanstalk/main/install.sh | sh
+```
+
+The installer verifies the release archive against `checksums.txt` and installs to `$HOME/.local/bin` by default. Ensure
+that directory is on your `PATH`:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Set `INSTALL_DIR` to a writable directory to install elsewhere, or `VERSION` to install a specific release:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/kpb/beanstalk/main/install.sh | INSTALL_DIR=/usr/local/bin sh
+curl -fsSL https://raw.githubusercontent.com/kpb/beanstalk/main/install.sh | VERSION=v0.1.0 sh
+```
+
+The installer requires `curl`, `tar`, and either `sha256sum` or `shasum`. On Windows, download the ZIP archive for your
+platform from the [latest release](https://github.com/kpb/beanstalk/releases/latest), extract it, and place
+`beanstalk.exe` on your `PATH`.
 
 ```bash
 beanstalk version
