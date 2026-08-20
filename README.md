@@ -62,9 +62,18 @@ plugins or automatic hooks.
 
 ## Why?
 
-I enjoy using the Beans project. But, the TUI is missing some features that I'd like and the project has hinted that the
-TUI is not a priority and it may move in another direction entirely. Rather than fork the project, I decided to create a
-TUI forward version.
+I enjoy using the Beans project but there are some missing features that are important to me.
+
+The [Beans](https://github.com/hmans/beans) TUI is not a priority, and the project has hinted that it may move in
+another direction entirely. The Beanstalk TUI will be a first-class feature, allowing users to manage their tasks
+outside agent workflows.
+
+Beyond the TUI, I want task tracking to work naturally with coding agents. Beanstalk provides a local, scriptable CLI
+with JSON output and atomic claims, while `prime` gives agents project-specific guidance that teams can override via
+configuration. The goal is a focused native tool that keeps task history readable and reviewable alongside the code.
+
+A fresh implementation is simpler to evolve than maintaining a long-lived fork. Beanstalk preserves compatibility with
+the Beans task-file format while allowing its terminal, agent, and TUI workflows to develop independently.
 
 ## Use
 
