@@ -3,7 +3,7 @@ package commands
 
 import "github.com/spf13/cobra"
 
-const version = "0.0.0-dev"
+var version = "0.0.0-dev"
 
 // NewRootCommand constructs the top-level Beanstalk command.
 func NewRootCommand() *cobra.Command {

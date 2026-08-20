@@ -11,9 +11,18 @@ Beanstalk is an independent, terminal-native implementation of the [Beans](https
 format. It stores tasks as Markdown files with YAML front matter, keeping project work readable, reviewable, and version
 controlled alongside source code. It works equally well for an individual developer, a team, and coding agents.
 
-The project is in its initial development stage. The first release will provide a Cobra-based CLI and a first-class
-Bubble Tea terminal UI, with text and JSON output. It will read and write the current Beans on-disk format without
-bundling Beans' web, server, GraphQL, agent, or worktree features.
+Beanstalk currently provides a Cobra-based CLI with text and JSON output. An interactive Bubble Tea terminal UI is
+planned. It reads and writes the current Beans on-disk format without bundling Beans' web, server, GraphQL, agent, or
+worktree features.
+
+## Install
+
+Download the archive for your platform from the [latest release](https://github.com/kpb/beanstalk/releases/latest),
+extract it, and place `beanstalk` on your `PATH`. Verify the download with the release's `checksums.txt` file.
+
+```bash
+beanstalk version
+```
 
 ## Why?
 
