@@ -4,7 +4,10 @@
 
 Beanstalk is a terminal-native implementation of the Beans task-file format.
 Read the architecture decisions in `docs/adr/` before making design changes.
-Current decision: `docs/adr/0001-use-go-for-the-terminal-application.md`.
+Current decisions: `docs/adr/0001-use-go-for-the-terminal-application.md` and
+`docs/adr/0002-use-beanstalk-for-project-task-tracking.md`.
+
+**IMPORTANT**: Before you do anything else, run `beanstalk prime` and follow its output.
 
 ## First Agent Milestone
 

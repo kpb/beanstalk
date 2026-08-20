@@ -49,6 +49,17 @@ platform from the [latest release](https://github.com/kpb/beanstalk/releases/lat
 beanstalk version
 ```
 
+## Agent Setup
+
+Add the following instruction to your project's `AGENTS.md`, `CLAUDE.md`, or equivalent agent guidance file:
+
+```md
+**IMPORTANT**: Before you do anything else, run `beanstalk prime` and follow its output.
+```
+
+`beanstalk prime` provides the implemented task-tracking workflow for coding agents. Beanstalk does not provide agent
+plugins or automatic hooks.
+
 ## Why?
 
 I enjoy using the Beans project. But, the TUI is missing some features that I'd like and the project has hinted that the
