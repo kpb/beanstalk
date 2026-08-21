@@ -1,0 +1,98 @@
+# CLI Guide
+
+Beanstalk stores tasks as Markdown files with YAML front matter. The CLI reads and writes this format from the current
+project directory.
+
+## Initialize
+
+Create the Beans directory and configuration:
+
+```bash
+beanstalk init
+```
+
+This creates `.beans/`, `.beans/.gitignore`, and `.beans.yml`. Initialization refuses to overwrite existing paths. The
+generated configuration retains the Beans configuration structure for compatibility; Beanstalk currently ignores the
+worktree, agent, and server settings.
+
+## Create And Inspect Tasks
+
+Create a task using the configured defaults:
+
+```bash
+beanstalk create "Add login"
+```
+
+Use `--status`, `--type`, `--priority`, `--body`, repeatable `--tag`, and `--parent <bean-id>` to set metadata. Pass
+`--json` to return the created task for scripts.
+
+List tasks, optionally filtering by status or type:
+
+```bash
+beanstalk list --status todo
+beanstalk list --type bug --json
+```
+
+Show one task, including its Markdown body:
+
+```bash
+beanstalk show project-a1b2
+beanstalk show project-a1b2 --json
+```
+
+## Update And Organize Tasks
+
+Update status or parent metadata by ID:
+
+```bash
+beanstalk update project-a1b2 --status in-progress
+beanstalk update project-a1b2 --status completed --json
+beanstalk update project-a1b2 --parent project-c3d4
+beanstalk update project-a1b2 --parent ""
+```
+
+Parents must reference an existing task and cannot form cycles. Passing an empty `--parent` removes the parent link.
+
+Claim a todo task atomically before working on it:
+
+```bash
+beanstalk claim project-a1b2 --json
+```
+
+## Milestone Progress
+
+Show active milestones and progress from their leaf descendants:
+
+```bash
+beanstalk milestones
+beanstalk milestones --all --json
+```
+
+The default includes milestones with `todo`, `draft`, or `in-progress` status. `--all` also includes completed and
+scrapped milestones. Completed and scrapped leaf tasks are both resolved work; JSON output reports their counts
+separately.
+
+## Agent Workflow
+
+Print the built-in instructions for coding agents:
+
+```bash
+beanstalk prime
+```
+
+This also works outside an initialized project. To provide project-specific instructions, create `.beanstalk.yaml` in
+the current directory with a `prime.instructions` string.
+
+An agent can list available work, claim it, inspect it, and record the outcome:
+
+```bash
+beanstalk list --status todo --json
+beanstalk claim project-a1b2 --json
+beanstalk show project-a1b2 --json
+beanstalk update project-a1b2 --status completed --json
+```
+
+## Supported Scope
+
+Beanstalk intentionally does not implement ready filtering, search, multi-ID show, body edits, relationships beyond a
+single parent link, archive, etags, GraphQL, web/server features, agent plugins, or worktree automation.

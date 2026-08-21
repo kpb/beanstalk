@@ -1,13 +1,13 @@
 <img src="beanstalk.jpg" alt="Beanstalk" width="720">
 
-[![License](https://img.shields.io/github/license/kpb/beanstalk)](LICENSE)
-[![Latest release](https://img.shields.io/github/v/release/kpb/beanstalk)](https://github.com/kpb/beanstalk/releases/latest)
-[![Tests](https://github.com/kpb/beanstalk/actions/workflows/test.yml/badge.svg)](https://github.com/kpb/beanstalk/actions/workflows/test.yml)
-[![Go version](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go)](go.mod)
+[![License][license-badge]][license]
+[![Latest release][release-badge]][latest-release]
+[![Tests][tests-badge]][tests-workflow]
+[![Go version][go-badge]][go-mod]
 
 # Beanstalk
 
-Beanstalk is an independent, terminal-native implementation of the [Beans](https://github.com/hmans/beans) task
+Beanstalk is an independent, terminal-native implementation of the [Beans][beans] task
 format. It stores tasks as Markdown files with YAML front matter, keeping project work readable, reviewable, and version
 controlled alongside source code. It works equally well for an individual developer, a team, and coding agents.
 
@@ -16,7 +16,7 @@ writes the current Beans on-disk format without bundling Beans' web, server, Gra
 
 ## Architecture Decisions
 
-See [Architecture Decision Records](docs/adr/) for the project's durable technical decisions.
+See [Architecture Decision Records][architecture-decisions] for the project's durable technical decisions.
 
 ## Install
 
@@ -41,7 +41,7 @@ curl -fsSL https://raw.githubusercontent.com/kpb/beanstalk/main/install.sh | VER
 ```
 
 The installer requires `curl`, `tar`, and either `sha256sum` or `shasum`. On Windows, download the ZIP archive for your
-platform from the [latest release](https://github.com/kpb/beanstalk/releases/latest), extract it, and place
+platform from the [latest release][latest-release], extract it, and place
 `beanstalk.exe` on your `PATH`.
 
 ```bash
@@ -61,9 +61,9 @@ plugins or automatic hooks.
 
 ## Why?
 
-I enjoy using the Beans project but there are some missing features that are important to me.
+I/Kenneth enjoy using the Beans project but there are some missing features that are important to me.
 
-The [Beans](https://github.com/hmans/beans) TUI is not a priority, and the project has hinted that it may move in
+The [Beans][beans] TUI is not a priority, and the project has hinted that it may move in
 another direction entirely. The Beanstalk TUI will be a first-class feature, allowing users to manage their tasks
 outside agent workflows.
 
@@ -76,86 +76,27 @@ the Beans task-file format while allowing its terminal, agent, and TUI workflows
 
 ## Use
 
-Initialize a project with the current Beans on-disk layout:
+### CLI
+
+Use the CLI to create, organize, inspect, and update Beans-format tasks. It provides text and JSON output for people,
+scripts, and coding agents.
 
 ```bash
 beanstalk init
-```
-
-This creates `.beans/`, `.beans/.gitignore`, and `.beans.yml`. It refuses to overwrite an existing path.
-
-The generated `.beans.yml` includes the current Beans configuration structure for compatibility. Beanstalk currently
-ignores the worktree, agent, and server settings.
-
-Print the built-in instructions for coding agents:
-
-```bash
-beanstalk prime
-```
-
-This also works outside an initialized project. To use project-specific instructions, create `.beanstalk.yaml` in the
-current directory with a `prime.instructions` string; Beanstalk emits that string instead of the built-in instructions.
-
-Create a task using the configured defaults:
-
-```bash
-beanstalk create "Add login"
-```
-
-Use `--status`, `--type`, `--priority`, `--body`, repeatable `--tag`, and `--parent <bean-id>` flags to set initial
-metadata. Pass `--json` to emit the created bean as JSON for scripts and coding agents.
-
-List tasks, optionally filtering by status or type:
-
-```bash
 beanstalk list --status todo
 ```
 
-Pass `--json` to emit a JSON array for scripts and coding agents.
+[Read the CLI guide][cli-guide] for commands, task hierarchies, milestone progress, JSON output, and agent workflow.
 
-Browse tasks interactively:
+### TUI
+
+Use the read-only TUI to browse the same task list interactively.
 
 ```bash
 beanstalk tui
 ```
 
-The TUI is read-only. Use `j`/`k` or the arrow keys to navigate, `g`/`G` to jump to the first or last task, and `q` or
-Ctrl-C to exit.
-
-Show progress from leaf-descendant work for active milestones:
-
-```bash
-beanstalk milestones
-beanstalk milestones --all --json
-```
-
-Completed and scrapped leaves are both resolved work. Pass `--all` to include completed and scrapped milestones.
-
-Show a task, including its Markdown body:
-
-```bash
-beanstalk show project-a1b2
-beanstalk show project-a1b2 --json
-```
-
-Update a task's status or parent by ID:
-
-```bash
-beanstalk update project-a1b2 --status in-progress
-beanstalk update project-a1b2 --status completed --json
-beanstalk update project-a1b2 --parent project-c3d4
-beanstalk update project-a1b2 --parent ""
-```
-
-Parents must reference an existing bean and cannot form cycles. Passing an empty `--parent` removes the parent link.
-
-An agent can list available work with `beanstalk list --status todo --json`, then atomically claim it before working:
-
-```bash
-beanstalk claim project-a1b2 --json
-beanstalk show project-a1b2 --json
-beanstalk update project-a1b2 --status completed
-```
+[Read the TUI guide][tui-guide] for navigation keys, displayed task data, and terminal behavior.
 
 ## Development
 
@@ -169,4 +110,18 @@ go run ./cmd/beanstalk version
 
 ## License
 
-Beanstalk is licensed under the GNU General Public License, version 3. See [LICENSE](LICENSE).
+Beanstalk is licensed under the GNU General Public License, version 3. See [LICENSE][license].
+
+<!-- ref links ordered alphabetically -->
+[architecture-decisions]: docs/adr/
+[beans]: https://github.com/hmans/beans
+[cli-guide]: docs/cli.md
+[go-badge]: https://img.shields.io/badge/Go-1.26-00ADD8?logo=go
+[go-mod]: go.mod
+[latest-release]: https://github.com/kpb/beanstalk/releases/latest
+[license-badge]: https://img.shields.io/github/license/kpb/beanstalk
+[license]: LICENSE
+[release-badge]: https://img.shields.io/github/v/release/kpb/beanstalk
+[tests-badge]: https://github.com/kpb/beanstalk/actions/workflows/test.yml/badge.svg
+[tests-workflow]: https://github.com/kpb/beanstalk/actions/workflows/test.yml
+[tui-guide]: docs/tui.md
