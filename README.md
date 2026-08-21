@@ -122,6 +122,15 @@ beanstalk tui
 The TUI is read-only. Use `j`/`k` or the arrow keys to navigate, `g`/`G` to jump to the first or last task, and `q` or
 Ctrl-C to exit.
 
+Show progress from leaf-descendant work for active milestones:
+
+```bash
+beanstalk milestones
+beanstalk milestones --all --json
+```
+
+Completed and scrapped leaves are both resolved work. Pass `--all` to include completed and scrapped milestones.
+
 Show a task, including its Markdown body:
 
 ```bash

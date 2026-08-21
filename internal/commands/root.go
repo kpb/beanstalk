@@ -17,6 +17,7 @@ func NewRootCommand() *cobra.Command {
 	command.AddCommand(newInitCommand())
 	command.AddCommand(newCreateCommand())
 	command.AddCommand(newListCommand())
+	command.AddCommand(newMilestonesCommand())
 	command.AddCommand(newTUICommand())
 	command.AddCommand(newShowCommand())
 	command.AddCommand(newUpdateCommand())
