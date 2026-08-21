@@ -11,9 +11,8 @@ Beanstalk is an independent, terminal-native implementation of the [Beans](https
 format. It stores tasks as Markdown files with YAML front matter, keeping project work readable, reviewable, and version
 controlled alongside source code. It works equally well for an individual developer, a team, and coding agents.
 
-Beanstalk currently provides a Cobra-based CLI with text and JSON output. An interactive Bubble Tea terminal UI is
-planned. It reads and writes the current Beans on-disk format without bundling Beans' web, server, GraphQL, agent, or
-worktree features.
+Beanstalk provides a Cobra-based CLI with text and JSON output, plus a read-only Bubble Tea terminal UI. It reads and
+writes the current Beans on-disk format without bundling Beans' web, server, GraphQL, agent, or worktree features.
 
 ## Architecture Decisions
 
@@ -113,6 +112,15 @@ beanstalk list --status todo
 ```
 
 Pass `--json` to emit a JSON array for scripts and coding agents.
+
+Browse tasks interactively:
+
+```bash
+beanstalk tui
+```
+
+The TUI is read-only. Use `j`/`k` or the arrow keys to navigate, `g`/`G` to jump to the first or last task, and `q` or
+Ctrl-C to exit.
 
 Show a task, including its Markdown body:
 

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"slices"
-	"strings"
 
 	"github.com/kpb/beanstalk/internal/beans"
 	"github.com/spf13/cobra"
@@ -37,7 +36,7 @@ func newListCommand() *cobra.Command {
 				return err
 			}
 			filtered := filterBeans(loaded, options)
-			sortBeans(filtered)
+			beans.Sort(filtered)
 			if options.json {
 				for index := range filtered {
 					filtered[index].Body = ""
@@ -90,32 +89,4 @@ func filterBeans(loaded []beans.Bean, options listOptions) []beans.Bean {
 		filtered = append(filtered, bean)
 	}
 	return filtered
-}
-
-func sortBeans(loaded []beans.Bean) {
-	statusOrder := map[string]int{"in-progress": 0, "todo": 1, "draft": 2, "completed": 3, "scrapped": 4}
-	priorityOrder := map[string]int{"critical": 0, "high": 1, "normal": 2, "low": 3, "deferred": 4}
-	typeOrder := map[string]int{"milestone": 0, "epic": 1, "bug": 2, "feature": 3, "task": 4}
-	slices.SortFunc(loaded, func(left, right beans.Bean) int {
-		for _, comparison := range []int{
-			statusOrderValue(statusOrder, left.Status) - statusOrderValue(statusOrder, right.Status),
-			statusOrderValue(priorityOrder, left.Priority) - statusOrderValue(priorityOrder, right.Priority),
-			statusOrderValue(typeOrder, left.Type) - statusOrderValue(typeOrder, right.Type),
-		} {
-			if comparison != 0 {
-				return comparison
-			}
-		}
-		if comparison := strings.Compare(strings.ToLower(left.Title), strings.ToLower(right.Title)); comparison != 0 {
-			return comparison
-		}
-		return strings.Compare(left.ID, right.ID)
-	})
-}
-
-func statusOrderValue(order map[string]int, value string) int {
-	if index, found := order[value]; found {
-		return index
-	}
-	return len(order)
 }
