@@ -27,14 +27,14 @@ func TestListCommand(t *testing.T) {
 	if err := command.Execute(); err != nil {
 		t.Fatalf("executing list command: %v", err)
 	}
-	if got, want := output.String(), "project-b2  in-progress  bug  Fix parser\nproject-a1  todo  task  Add login\nproject-c3  completed  task  Old task\n"; got != want {
+	if got, want := output.String(), "project-b2  in-progress  bug  -  Fix parser\nproject-a1  todo  task  -  Add login\nproject-c3  completed  task  -  Old task\n"; got != want {
 		t.Errorf("list output = %q, want %q", got, want)
 	}
 }
 
 func TestListCommandFiltersAndJSON(t *testing.T) {
 	workingDirectory := initializedProject(t)
-	writeBean(t, workingDirectory, ".beans/project-a1--task.md", beans.Bean{ID: "project-a1", Slug: "task", Title: "Task", Status: "todo", Type: "task", Body: "Not included"})
+	writeBean(t, workingDirectory, ".beans/project-a1--task.md", beans.Bean{ID: "project-a1", Slug: "task", Title: "Task", Status: "todo", Type: "task", Parent: "project-parent", Body: "Not included"})
 	writeBean(t, workingDirectory, ".beans/project-b2--bug.md", beans.Bean{ID: "project-b2", Slug: "bug", Title: "Bug", Status: "todo", Type: "bug"})
 	t.Chdir(workingDirectory)
 
@@ -49,7 +49,7 @@ func TestListCommandFiltersAndJSON(t *testing.T) {
 	if err := json.Unmarshal(output.Bytes(), &listed); err != nil {
 		t.Fatalf("decoding JSON output: %v\n%s", err, output.String())
 	}
-	if len(listed) != 1 || listed[0].ID != "project-a1" || listed[0].Priority != "normal" || listed[0].Body != "" {
+	if len(listed) != 1 || listed[0].ID != "project-a1" || listed[0].Priority != "normal" || listed[0].Parent != "project-parent" || listed[0].Body != "" {
 		t.Errorf("JSON beans = %#v", listed)
 	}
 }
@@ -68,7 +68,7 @@ func TestListCommandAcceptsRepeatedFilters(t *testing.T) {
 	if err := command.Execute(); err != nil {
 		t.Fatalf("executing list command: %v", err)
 	}
-	if got, want := output.String(), "project-a1  todo  task  Task\nproject-b2  draft  bug  Bug\n"; got != want {
+	if got, want := output.String(), "project-a1  todo  task  -  Task\nproject-b2  draft  bug  -  Bug\n"; got != want {
 		t.Errorf("filtered list output = %q, want %q", got, want)
 	}
 }

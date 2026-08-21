@@ -12,6 +12,7 @@ import (
 
 type updateOptions struct {
 	status string
+	parent string
 	json   bool
 }
 
@@ -23,17 +24,26 @@ func newUpdateCommand() *cobra.Command {
 		Short:   "Update a Beans-format task",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(command *cobra.Command, args []string) error {
-			if options.status == "" {
-				return fmt.Errorf("--status is required")
+			statusChanged := command.Flags().Changed("status")
+			parentChanged := command.Flags().Changed("parent")
+			if !statusChanged && !parentChanged {
+				return fmt.Errorf("at least one of --status or --parent is required")
 			}
-			if !beanStatuses[options.status] {
+			if statusChanged && (options.status == "" || !beanStatuses[options.status]) {
 				return fmt.Errorf("invalid status %q", options.status)
 			}
 			workingDirectory, err := os.Getwd()
 			if err != nil {
 				return fmt.Errorf("getting working directory: %w", err)
 			}
-			bean, err := beans.UpdateStatus(workingDirectory, args[0], options.status, time.Now())
+			fields := beans.UpdateFields{}
+			if statusChanged {
+				fields.Status = &options.status
+			}
+			if parentChanged {
+				fields.Parent = &options.parent
+			}
+			bean, err := beans.Update(workingDirectory, args[0], fields, time.Now())
 			if err != nil {
 				return err
 			}
@@ -44,11 +54,16 @@ func newUpdateCommand() *cobra.Command {
 					Message string     `json:"message"`
 				}{true, bean, "Bean updated"})
 			}
-			command.Printf("Updated %s status to %s\n", bean.ID, bean.Status)
+			if statusChanged && !parentChanged {
+				command.Printf("Updated %s status to %s\n", bean.ID, bean.Status)
+			} else {
+				command.Printf("Updated %s\n", bean.ID)
+			}
 			return nil
 		},
 	}
 	command.Flags().StringVarP(&options.status, "status", "s", "", "New status")
+	command.Flags().StringVar(&options.parent, "parent", "", "Parent bean ID; pass an empty value to remove")
 	command.Flags().BoolVar(&options.json, "json", false, "Output JSON")
 	return command
 }

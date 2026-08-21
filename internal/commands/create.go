@@ -28,6 +28,7 @@ type createOptions struct {
 	status   string
 	typeName string
 	priority string
+	parent   string
 	body     string
 	tags     []string
 	json     bool
@@ -65,6 +66,7 @@ func newCreateCommand() *cobra.Command {
 	command.Flags().StringVarP(&options.status, "status", "s", "", "Initial status")
 	command.Flags().StringVarP(&options.typeName, "type", "t", "", "Bean type")
 	command.Flags().StringVarP(&options.priority, "priority", "p", "", "Priority")
+	command.Flags().StringVar(&options.parent, "parent", "", "Parent bean ID")
 	command.Flags().StringVarP(&options.body, "body", "d", "", "Markdown body")
 	command.Flags().StringArrayVar(&options.tags, "tag", nil, "Tag (repeatable)")
 	command.Flags().BoolVar(&options.json, "json", false, "Output JSON")
@@ -129,7 +131,10 @@ func createBean(workingDirectory, title string, options createOptions) (beans.Be
 			name = id + ".md"
 		}
 		path := filepath.Join(beansPath, name)
-		bean := beans.Bean{ID: id, Slug: slug, Title: title, Status: status, Type: typeName, Priority: options.priority, Tags: options.tags, CreatedAt: now, UpdatedAt: now, Path: name, Body: options.body}
+		if err := beans.ValidateParent(workingDirectory, id, options.parent); err != nil {
+			return beans.Bean{}, err
+		}
+		bean := beans.Bean{ID: id, Slug: slug, Title: title, Status: status, Type: typeName, Priority: options.priority, Tags: options.tags, Parent: options.parent, CreatedAt: now, UpdatedAt: now, Path: name, Body: options.body}
 		contents, err := beans.Render(bean)
 		if err != nil {
 			return beans.Bean{}, err

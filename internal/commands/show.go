@@ -34,7 +34,11 @@ func newShowCommand() *cobra.Command {
 				return json.NewEncoder(command.OutOrStdout()).Encode(bean)
 			}
 
-			command.Printf("ID: %s\nStatus: %s\nType: %s\nPriority: %s\nTags: %s\nCreated: %s\nUpdated: %s\n\n%s\n", bean.ID, bean.Status, bean.Type, bean.Priority, strings.Join(bean.Tags, ", "), bean.CreatedAt.UTC().Format(time.RFC3339), bean.UpdatedAt.UTC().Format(time.RFC3339), bean.Title)
+			parent := bean.Parent
+			if parent == "" {
+				parent = "-"
+			}
+			command.Printf("ID: %s\nStatus: %s\nType: %s\nPriority: %s\nTags: %s\nParent: %s\nCreated: %s\nUpdated: %s\n\n%s\n", bean.ID, bean.Status, bean.Type, bean.Priority, strings.Join(bean.Tags, ", "), parent, bean.CreatedAt.UTC().Format(time.RFC3339), bean.UpdatedAt.UTC().Format(time.RFC3339), bean.Title)
 			if bean.Body != "" {
 				command.Printf("\n%s\n", bean.Body)
 			}

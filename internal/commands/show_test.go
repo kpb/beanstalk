@@ -14,7 +14,7 @@ func TestShowCommandDisplaysTaskAndJSON(t *testing.T) {
 	workingDirectory := initializedProject(t)
 	createdAt := time.Date(2026, time.August, 15, 12, 0, 0, 0, time.UTC)
 	updatedAt := time.Date(2026, time.August, 16, 13, 30, 0, 0, time.UTC)
-	writeBean(t, workingDirectory, ".beans/archive/project-a1--task.md", beans.Bean{ID: "project-a1", Slug: "task", Title: "Task title", Status: "in-progress", Type: "feature", Priority: "high", Tags: []string{"api", "auth"}, CreatedAt: createdAt, UpdatedAt: updatedAt, Body: "Implement the endpoint."})
+	writeBean(t, workingDirectory, ".beans/archive/project-a1--task.md", beans.Bean{ID: "project-a1", Slug: "task", Title: "Task title", Status: "in-progress", Type: "feature", Priority: "high", Tags: []string{"api", "auth"}, Parent: "project-parent", CreatedAt: createdAt, UpdatedAt: updatedAt, Body: "Implement the endpoint."})
 	t.Chdir(workingDirectory)
 
 	command := NewRootCommand()
@@ -24,7 +24,7 @@ func TestShowCommandDisplaysTaskAndJSON(t *testing.T) {
 	if err := command.Execute(); err != nil {
 		t.Fatalf("executing show command: %v", err)
 	}
-	want := "ID: project-a1\nStatus: in-progress\nType: feature\nPriority: high\nTags: api, auth\nCreated: 2026-08-15T12:00:00Z\nUpdated: 2026-08-16T13:30:00Z\n\nTask title\n\nImplement the endpoint.\n"
+	want := "ID: project-a1\nStatus: in-progress\nType: feature\nPriority: high\nTags: api, auth\nParent: project-parent\nCreated: 2026-08-15T12:00:00Z\nUpdated: 2026-08-16T13:30:00Z\n\nTask title\n\nImplement the endpoint.\n"
 	if got := output.String(); got != want {
 		t.Errorf("show output = %q, want %q", got, want)
 	}
@@ -40,7 +40,7 @@ func TestShowCommandDisplaysTaskAndJSON(t *testing.T) {
 	if err := json.Unmarshal(output.Bytes(), &shown); err != nil {
 		t.Fatalf("decoding JSON output: %v\n%s", err, output.String())
 	}
-	if shown.ID != "project-a1" || shown.Path != "archive/project-a1--task.md" || shown.Body != "Implement the endpoint." || !shown.CreatedAt.Equal(createdAt) || !shown.UpdatedAt.Equal(updatedAt) {
+	if shown.ID != "project-a1" || shown.Path != "archive/project-a1--task.md" || shown.Parent != "project-parent" || shown.Body != "Implement the endpoint." || !shown.CreatedAt.Equal(createdAt) || !shown.UpdatedAt.Equal(updatedAt) {
 		t.Errorf("shown bean = %#v", shown)
 	}
 }

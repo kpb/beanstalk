@@ -85,3 +85,29 @@ func TestLoadRequiresInitializedProject(t *testing.T) {
 		t.Errorf("load error = %v, want ErrNotInitialized", err)
 	}
 }
+
+func TestLoadAndRenderPreserveParent(t *testing.T) {
+	workingDirectory := t.TempDir()
+	if err := os.Mkdir(filepath.Join(workingDirectory, ".beans"), 0o755); err != nil {
+		t.Fatalf("creating beans directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workingDirectory, ".beans.yml"), []byte("beans:\n  path: .beans\n"), 0o644); err != nil {
+		t.Fatalf("writing config: %v", err)
+	}
+	path := filepath.Join(workingDirectory, ".beans", "project-child--child.md")
+	contents, err := Render(Bean{ID: "project-child", Title: "Child", Status: "todo", Type: "task", Parent: "project-parent"})
+	if err != nil {
+		t.Fatalf("rendering bean: %v", err)
+	}
+	if err := os.WriteFile(path, contents, 0o644); err != nil {
+		t.Fatalf("writing bean: %v", err)
+	}
+
+	loaded, err := Load(workingDirectory)
+	if err != nil {
+		t.Fatalf("loading beans: %v", err)
+	}
+	if len(loaded) != 1 || loaded[0].Parent != "project-parent" {
+		t.Errorf("loaded beans = %#v", loaded)
+	}
+}

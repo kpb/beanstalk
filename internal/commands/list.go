@@ -49,7 +49,11 @@ func newListCommand() *cobra.Command {
 				return nil
 			}
 			for _, bean := range filtered {
-				command.Printf("%s  %s  %s  %s\n", bean.ID, bean.Status, bean.Type, bean.Title)
+				parent := bean.Parent
+				if parent == "" {
+					parent = "-"
+				}
+				command.Printf("%s  %s  %s  %s  %s\n", bean.ID, bean.Status, bean.Type, parent, bean.Title)
 			}
 			return nil
 		},

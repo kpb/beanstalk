@@ -103,8 +103,8 @@ Create a task using the configured defaults:
 beanstalk create "Add login"
 ```
 
-Use `--status`, `--type`, `--priority`, `--body`, and repeatable `--tag` flags to set initial metadata. Pass `--json`
-to emit the created bean as JSON for scripts and coding agents.
+Use `--status`, `--type`, `--priority`, `--body`, repeatable `--tag`, and `--parent <bean-id>` flags to set initial
+metadata. Pass `--json` to emit the created bean as JSON for scripts and coding agents.
 
 List tasks, optionally filtering by status or type:
 
@@ -121,12 +121,16 @@ beanstalk show project-a1b2
 beanstalk show project-a1b2 --json
 ```
 
-Update a task's status by ID:
+Update a task's status or parent by ID:
 
 ```bash
 beanstalk update project-a1b2 --status in-progress
 beanstalk update project-a1b2 --status completed --json
+beanstalk update project-a1b2 --parent project-c3d4
+beanstalk update project-a1b2 --parent ""
 ```
+
+Parents must reference an existing bean and cannot form cycles. Passing an empty `--parent` removes the parent link.
 
 An agent can list available work with `beanstalk list --status todo --json`, then atomically claim it before working:
 

@@ -15,7 +15,15 @@ var (
 	ErrBeanNotFound     = errors.New("bean not found")
 	ErrDuplicateBeanID  = errors.New("multiple beans have the same ID")
 	ErrBeanNotClaimable = errors.New("bean is not available to claim")
+	ErrParentCycle      = errors.New("parent link would create a cycle")
 )
+
+const parentLockFilename = ".beanstalk-parent.lock"
+
+type UpdateFields struct {
+	Status *string
+	Parent *string
+}
 
 // Find returns the bean with the exact ID from the configured Beans directory.
 func Find(workingDirectory, id string) (Bean, error) {
@@ -42,6 +50,18 @@ func Find(workingDirectory, id string) (Bean, error) {
 
 // UpdateStatus updates a bean's status while preserving its other front matter and body.
 func UpdateStatus(workingDirectory, id, status string, updatedAt time.Time) (Bean, error) {
+	return Update(workingDirectory, id, UpdateFields{Status: &status}, updatedAt)
+}
+
+// Update changes supported bean metadata while preserving other front matter and body.
+func Update(workingDirectory, id string, fields UpdateFields, updatedAt time.Time) (Bean, error) {
+	if fields.Parent != nil {
+		lock, err := lockParents(workingDirectory)
+		if err != nil {
+			return Bean{}, err
+		}
+		defer lock.Unlock()
+	}
 	_, path, err := findBeanPath(workingDirectory, id)
 	if err != nil {
 		return Bean{}, err
@@ -51,7 +71,24 @@ func UpdateStatus(workingDirectory, id, status string, updatedAt time.Time) (Bea
 		return Bean{}, err
 	}
 	defer lock.Unlock()
-	return updateStatusLocked(workingDirectory, id, status, updatedAt)
+	if fields.Parent != nil {
+		if err := ValidateParent(workingDirectory, id, *fields.Parent); err != nil {
+			return Bean{}, err
+		}
+	}
+	return updateLocked(workingDirectory, id, fields, updatedAt)
+}
+
+func lockParents(workingDirectory string) (*flock.Flock, error) {
+	config, err := LoadConfig(workingDirectory)
+	if err != nil {
+		return nil, err
+	}
+	directory, err := Directory(workingDirectory, config)
+	if err != nil {
+		return nil, err
+	}
+	return lockBean(filepath.Join(directory, parentLockFilename))
 }
 
 // Claim transitions a todo bean to in-progress without allowing another claimant to win the same task.
@@ -101,20 +138,29 @@ func lockBean(path string) (*flock.Flock, error) {
 }
 
 func updateStatusLocked(workingDirectory, id, status string, updatedAt time.Time) (Bean, error) {
+	return updateLocked(workingDirectory, id, UpdateFields{Status: &status}, updatedAt)
+}
+
+func updateLocked(workingDirectory, id string, fields UpdateFields, updatedAt time.Time) (Bean, error) {
 	bean, path, err := findBeanPath(workingDirectory, id)
 	if err != nil {
 		return Bean{}, err
 	}
 	updatedAt = updatedAt.UTC().Truncate(time.Second)
-	if err := updateStatusFile(path, status, updatedAt); err != nil {
+	if err := updateBeanFile(path, fields, updatedAt); err != nil {
 		return Bean{}, err
 	}
-	bean.Status = status
+	if fields.Status != nil {
+		bean.Status = *fields.Status
+	}
+	if fields.Parent != nil {
+		bean.Parent = *fields.Parent
+	}
 	bean.UpdatedAt = updatedAt
 	return bean, nil
 }
 
-func updateStatusFile(path, status string, updatedAt time.Time) error {
+func updateBeanFile(path string, fields UpdateFields, updatedAt time.Time) error {
 	contents, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("reading %s: %w", path, err)
@@ -128,8 +174,19 @@ func updateStatusFile(path, status string, updatedAt time.Time) error {
 	if err := yaml.Unmarshal([]byte(metadata), &document); err != nil {
 		return fmt.Errorf("parsing %s: %w", path, err)
 	}
-	if err := setMetadataValue(&document, "status", status); err != nil {
-		return fmt.Errorf("updating %s: %w", path, err)
+	if fields.Status != nil {
+		if err := setMetadataValue(&document, "status", *fields.Status); err != nil {
+			return fmt.Errorf("updating %s: %w", path, err)
+		}
+	}
+	if fields.Parent != nil {
+		if *fields.Parent == "" {
+			if err := deleteMetadataValue(&document, "parent"); err != nil {
+				return fmt.Errorf("updating %s: %w", path, err)
+			}
+		} else if err := setMetadataValue(&document, "parent", *fields.Parent); err != nil {
+			return fmt.Errorf("updating %s: %w", path, err)
+		}
 	}
 	if err := setMetadataValue(&document, "updated_at", updatedAt.Format(time.RFC3339)); err != nil {
 		return fmt.Errorf("updating %s: %w", path, err)
@@ -173,6 +230,42 @@ func updateStatusFile(path, status string, updatedAt time.Time) error {
 	return nil
 }
 
+// ValidateParent ensures that parent names one existing bean without creating a cycle.
+func ValidateParent(workingDirectory, id, parent string) error {
+	if parent == "" {
+		return nil
+	}
+	if parent == id {
+		return fmt.Errorf("%w: %s", ErrParentCycle, id)
+	}
+
+	loaded, err := Load(workingDirectory)
+	if err != nil {
+		return err
+	}
+	byID := make(map[string]Bean, len(loaded))
+	for _, bean := range loaded {
+		if _, found := byID[bean.ID]; found {
+			return fmt.Errorf("%w: %s", ErrDuplicateBeanID, bean.ID)
+		}
+		byID[bean.ID] = bean
+	}
+
+	visited := map[string]bool{id: true}
+	for parent != "" {
+		if visited[parent] {
+			return fmt.Errorf("%w: %s", ErrParentCycle, parent)
+		}
+		visited[parent] = true
+		bean, found := byID[parent]
+		if !found {
+			return fmt.Errorf("parent bean not found: %s", parent)
+		}
+		parent = bean.Parent
+	}
+	return nil
+}
+
 func setMetadataValue(document *yaml.Node, key, value string) error {
 	if document.Kind != yaml.DocumentNode || len(document.Content) != 1 || document.Content[0].Kind != yaml.MappingNode {
 		return errors.New("front matter must be a YAML mapping")
@@ -189,5 +282,20 @@ func setMetadataValue(document *yaml.Node, key, value string) error {
 		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key},
 		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: value},
 	)
+	return nil
+}
+
+func deleteMetadataValue(document *yaml.Node, key string) error {
+	if document.Kind != yaml.DocumentNode || len(document.Content) != 1 || document.Content[0].Kind != yaml.MappingNode {
+		return errors.New("front matter must be a YAML mapping")
+	}
+	mapping := document.Content[0]
+	for index := 0; index < len(mapping.Content); index += 2 {
+		if mapping.Content[index].Value != key {
+			continue
+		}
+		mapping.Content = append(mapping.Content[:index], mapping.Content[index+2:]...)
+		return nil
+	}
 	return nil
 }

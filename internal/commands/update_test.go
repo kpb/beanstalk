@@ -18,7 +18,7 @@ func TestUpdateCommandUpdatesStatusAndPreservesTaskContents(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("creating archive: %v", err)
 	}
-	contents := "---\n# project-a1\ntitle: Keep task details\nstatus: todo\ntype: task\ntags:\n  - api\ncreated_at: 2026-08-15T12:00:00Z\nupdated_at: 2026-08-15T12:00:00Z\ncustom_field: preserve me\n---\nKeep this body exactly.\n"
+	contents := "---\n# project-a1\ntitle: Keep task details\nstatus: todo\ntype: task\nparent: project-parent\ntags:\n  - api\ncreated_at: 2026-08-15T12:00:00Z\nupdated_at: 2026-08-15T12:00:00Z\ncustom_field: preserve me\n---\nKeep this body exactly.\n"
 	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
 		t.Fatalf("writing bean: %v", err)
 	}
@@ -53,7 +53,7 @@ func TestUpdateCommandUpdatesStatusAndPreservesTaskContents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading updated bean: %v", err)
 	}
-	for _, want := range []string{"# project-a1", "status: in-progress", "custom_field: preserve me", "Keep this body exactly.\n"} {
+	for _, want := range []string{"# project-a1", "status: in-progress", "parent: project-parent", "custom_field: preserve me", "Keep this body exactly.\n"} {
 		if !strings.Contains(string(updated), want) {
 			t.Errorf("updated bean does not contain %q:\n%s", want, updated)
 		}
@@ -66,7 +66,7 @@ func TestUpdateCommandUpdatesStatusAndPreservesTaskContents(t *testing.T) {
 		t.Fatalf("loaded beans = %d, want 1", len(loaded))
 	}
 	bean := loaded[0]
-	if bean.Status != "in-progress" || bean.Body != "Keep this body exactly." || !bean.CreatedAt.Equal(response.Bean.CreatedAt) || !bean.UpdatedAt.Equal(response.Bean.UpdatedAt) {
+	if bean.Status != "in-progress" || bean.Parent != "project-parent" || bean.Body != "Keep this body exactly." || !bean.CreatedAt.Equal(response.Bean.CreatedAt) || !bean.UpdatedAt.Equal(response.Bean.UpdatedAt) {
 		t.Errorf("loaded bean = %#v", bean)
 	}
 }
@@ -98,6 +98,72 @@ func TestUpdateCommandRejectsDuplicateIDs(t *testing.T) {
 
 	command := NewRootCommand()
 	command.SetArgs([]string{"update", "project-a1", "--status", "completed"})
+	if err := command.Execute(); err == nil || !strings.Contains(err.Error(), "multiple beans have the same ID") {
+		t.Errorf("update error = %v", err)
+	}
+}
+
+func TestUpdateCommandChangesAndRemovesParent(t *testing.T) {
+	workingDirectory := initializedProject(t)
+	writeBean(t, workingDirectory, ".beans/project-parent--parent.md", beans.Bean{ID: "project-parent", Title: "Parent", Status: "todo", Type: "feature"})
+	writeBean(t, workingDirectory, ".beans/project-child--child.md", beans.Bean{ID: "project-child", Title: "Child", Status: "todo", Type: "task"})
+	t.Chdir(workingDirectory)
+
+	command := NewRootCommand()
+	command.SetArgs([]string{"update", "project-child", "--parent", "project-parent"})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("setting parent: %v", err)
+	}
+	child, err := beans.Find(workingDirectory, "project-child")
+	if err != nil {
+		t.Fatalf("finding child: %v", err)
+	}
+	if child.Parent != "project-parent" {
+		t.Errorf("parent = %q", child.Parent)
+	}
+
+	command = NewRootCommand()
+	command.SetArgs([]string{"update", "project-child", "--parent", ""})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("removing parent: %v", err)
+	}
+	child, err = beans.Find(workingDirectory, "project-child")
+	if err != nil {
+		t.Fatalf("finding child: %v", err)
+	}
+	if child.Parent != "" {
+		t.Errorf("parent = %q, want empty", child.Parent)
+	}
+}
+
+func TestUpdateCommandRejectsInvalidParents(t *testing.T) {
+	workingDirectory := initializedProject(t)
+	writeBean(t, workingDirectory, ".beans/project-a--a.md", beans.Bean{ID: "project-a", Title: "A", Status: "todo", Type: "task", Parent: "project-b"})
+	writeBean(t, workingDirectory, ".beans/project-b--b.md", beans.Bean{ID: "project-b", Title: "B", Status: "todo", Type: "task"})
+	t.Chdir(workingDirectory)
+
+	for _, args := range [][]string{
+		{"update", "project-a", "--parent", "project-a"},
+		{"update", "project-a", "--parent", "missing"},
+		{"update", "project-b", "--parent", "project-a"},
+	} {
+		command := NewRootCommand()
+		command.SetArgs(args)
+		if err := command.Execute(); err == nil {
+			t.Errorf("update %v succeeded", args)
+		}
+	}
+}
+
+func TestUpdateCommandRejectsDuplicateParentID(t *testing.T) {
+	workingDirectory := initializedProject(t)
+	writeBean(t, workingDirectory, ".beans/project-child--child.md", beans.Bean{ID: "project-child", Title: "Child", Status: "todo", Type: "task"})
+	writeBean(t, workingDirectory, ".beans/project-parent--first.md", beans.Bean{ID: "project-parent", Title: "First", Status: "todo", Type: "task"})
+	writeBean(t, workingDirectory, ".beans/archive/project-parent--second.md", beans.Bean{ID: "project-parent", Title: "Second", Status: "todo", Type: "task"})
+	t.Chdir(workingDirectory)
+
+	command := NewRootCommand()
+	command.SetArgs([]string{"update", "project-child", "--parent", "project-parent"})
 	if err := command.Execute(); err == nil || !strings.Contains(err.Error(), "multiple beans have the same ID") {
 		t.Errorf("update error = %v", err)
 	}

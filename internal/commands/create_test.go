@@ -75,6 +75,39 @@ func TestCreateCommandJSON(t *testing.T) {
 	}
 }
 
+func TestCreateCommandSetsParent(t *testing.T) {
+	workingDirectory := initializedProject(t)
+	writeBean(t, workingDirectory, ".beans/project-parent--parent.md", beans.Bean{ID: "project-parent", Title: "Parent", Status: "todo", Type: "feature"})
+	t.Chdir(workingDirectory)
+
+	command := NewRootCommand()
+	output := new(bytes.Buffer)
+	command.SetOut(output)
+	command.SetArgs([]string{"create", "Child", "--parent", "project-parent", "--json"})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("executing create command: %v", err)
+	}
+	var response struct {
+		Bean beans.Bean `json:"bean"`
+	}
+	if err := json.Unmarshal(output.Bytes(), &response); err != nil {
+		t.Fatalf("decoding JSON output: %v", err)
+	}
+	if response.Bean.Parent != "project-parent" {
+		t.Errorf("created bean = %#v", response.Bean)
+	}
+}
+
+func TestCreateCommandRejectsMissingParent(t *testing.T) {
+	workingDirectory := initializedProject(t)
+	t.Chdir(workingDirectory)
+	command := NewRootCommand()
+	command.SetArgs([]string{"create", "Child", "--parent", "missing"})
+	if err := command.Execute(); err == nil || !strings.Contains(err.Error(), "parent bean not found") {
+		t.Errorf("create error = %v", err)
+	}
+}
+
 func TestCreateCommandRequiresInitializedProject(t *testing.T) {
 	t.Chdir(t.TempDir())
 	command := NewRootCommand()

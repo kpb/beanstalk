@@ -33,6 +33,7 @@ type Bean struct {
 	Type      string    `json:"type,omitempty" yaml:"type"`
 	Priority  string    `json:"priority,omitempty" yaml:"priority"`
 	Tags      []string  `json:"tags,omitempty" yaml:"tags"`
+	Parent    string    `json:"parent,omitempty" yaml:"parent,omitempty"`
 	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" yaml:"updated_at"`
 	Body      string    `json:"body,omitempty" yaml:"-"`
@@ -188,9 +189,10 @@ func Render(bean Bean) ([]byte, error) {
 		Type      string    `yaml:"type"`
 		Priority  string    `yaml:"priority,omitempty"`
 		Tags      []string  `yaml:"tags,omitempty"`
+		Parent    string    `yaml:"parent,omitempty"`
 		CreatedAt time.Time `yaml:"created_at"`
 		UpdatedAt time.Time `yaml:"updated_at"`
-	}{bean.Title, bean.Status, bean.Type, bean.Priority, bean.Tags, bean.CreatedAt, bean.UpdatedAt}
+	}{bean.Title, bean.Status, bean.Type, bean.Priority, bean.Tags, bean.Parent, bean.CreatedAt, bean.UpdatedAt}
 	metadata, err := yaml.Marshal(frontMatter)
 	if err != nil {
 		return nil, fmt.Errorf("encoding bean metadata: %w", err)
