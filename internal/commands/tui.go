@@ -24,7 +24,9 @@ func newTUICommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_, err = tea.NewProgram(tui.NewTaskList(loaded), tea.WithInput(command.InOrStdin()), tea.WithOutput(command.OutOrStdout())).Run()
+			_, err = tea.NewProgram(tui.NewTaskList(loaded, tui.WithTaskLoader(func() ([]beans.Bean, error) {
+				return loadTUITasks(workingDirectory)
+			})), tea.WithInput(command.InOrStdin()), tea.WithOutput(command.OutOrStdout())).Run()
 			return err
 		},
 	}

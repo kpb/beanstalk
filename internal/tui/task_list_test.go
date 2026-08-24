@@ -166,6 +166,62 @@ func TestTaskListCollapseUpdatesRowsAndClampsSelection(t *testing.T) {
 	}
 }
 
+func TestTaskListRendersAndNavigatesHierarchy(t *testing.T) {
+	model := NewTaskList(testBeans())
+	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: 120, Height: 10})
+	if view := model.View().Content; !strings.Contains(view, "- First") || !strings.Contains(view, "    Second") {
+		t.Errorf("hierarchy view = %q", view)
+	}
+
+	model = updateTaskList(t, model, key("right"))
+	if model.rows[model.cursor].bean.ID != "project-b" {
+		t.Errorf("selected bean after right = %q, want project-b", model.rows[model.cursor].bean.ID)
+	}
+	model = updateTaskList(t, model, key("left"))
+	if model.rows[model.cursor].bean.ID != "project-a" {
+		t.Errorf("selected bean after left = %q, want project-a", model.rows[model.cursor].bean.ID)
+	}
+
+	model = updateTaskList(t, model, key("h"))
+	if got, want := rowIDs(model.rows), []string{"project-a", "project-c"}; !equalStringSlices(got, want) {
+		t.Errorf("visible row IDs after collapse = %v, want %v", got, want)
+	}
+	if view := model.View().Content; !strings.Contains(view, "+ First") {
+		t.Errorf("collapsed hierarchy view = %q", view)
+	}
+
+	model = updateTaskList(t, model, key("l"))
+	if got, want := rowIDs(model.rows), []string{"project-a", "project-b", "project-c"}; !equalStringSlices(got, want) {
+		t.Errorf("visible row IDs after expand = %v, want %v", got, want)
+	}
+}
+
+func TestTaskListReloadPreservesSelection(t *testing.T) {
+	model := NewTaskList(testBeans(), WithTaskLoader(func() ([]beans.Bean, error) {
+		return []beans.Bean{
+			{ID: "project-c", Title: "Third", Status: "todo", Priority: "normal", Type: "task"},
+			{ID: "project-a", Title: "First", Status: "todo", Priority: "normal", Type: "task"},
+			{ID: "project-b", Title: "Second", Status: "todo", Priority: "normal", Type: "task", Parent: "project-a"},
+		}, nil
+	}))
+	model = updateTaskList(t, model, key("down"))
+	updated, command := model.Update(key("r"))
+	if command == nil {
+		t.Fatal("reload command is nil")
+	}
+	list, ok := updated.(TaskList)
+	if !ok {
+		t.Fatalf("updated model = %T, want TaskList", updated)
+	}
+	model = updateTaskList(t, list, command())
+	if selected := model.rows[model.cursor].bean.ID; selected != "project-b" {
+		t.Errorf("selected bean after reload = %q, want project-b", selected)
+	}
+	if view := model.View().Content; !strings.Contains(view, "r reload") {
+		t.Errorf("reload help missing from view = %q", view)
+	}
+}
+
 func updateTaskList(t *testing.T, model TaskList, message tea.Msg) TaskList {
 	t.Helper()
 	updated, _ := model.Update(message)
@@ -185,6 +241,12 @@ func key(value string) tea.KeyPressMsg {
 	}
 	if value == "end" {
 		return tea.KeyPressMsg(tea.Key{Code: tea.KeyEnd})
+	}
+	if value == "left" {
+		return tea.KeyPressMsg(tea.Key{Code: tea.KeyLeft})
+	}
+	if value == "right" {
+		return tea.KeyPressMsg(tea.Key{Code: tea.KeyRight})
 	}
 	return tea.KeyPressMsg(tea.Key{Text: value, Code: rune(value[0])})
 }

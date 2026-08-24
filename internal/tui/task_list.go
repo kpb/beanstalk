@@ -20,6 +20,8 @@ type TaskList struct {
 	rows      []taskRow
 	collapsed map[string]bool
 	children  map[string]bool
+	load      func() ([]beans.Bean, error)
+	reloadErr error
 	cursor    int
 	offset    int
 	width     int
@@ -31,9 +33,27 @@ type taskRow struct {
 	depth int
 }
 
+type taskListLoadedMessage struct {
+	beans []beans.Bean
+	err   error
+}
+
+// TaskListOption configures a task-list model.
+type TaskListOption func(*TaskList)
+
+// WithTaskLoader enables reloading tasks from the TUI.
+func WithTaskLoader(load func() ([]beans.Bean, error)) TaskListOption {
+	return func(model *TaskList) {
+		model.load = load
+	}
+}
+
 // NewTaskList constructs a task-list model from already-loaded beans.
-func NewTaskList(loaded []beans.Bean) TaskList {
+func NewTaskList(loaded []beans.Bean, options ...TaskListOption) TaskList {
 	model := TaskList{beans: loaded, collapsed: make(map[string]bool)}
+	for _, option := range options {
+		option(&model)
+	}
 	model.rebuildRows()
 	return model
 }
@@ -48,6 +68,13 @@ func (m TaskList) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = message.Width
 		m.height = message.Height
 		m.clamp()
+	case taskListLoadedMessage:
+		if message.err != nil {
+			m.reloadErr = message.err
+			return m, nil
+		}
+		m.reloadErr = nil
+		m.replaceBeans(message.beans)
 	case tea.KeyPressMsg:
 		switch message.String() {
 		case "q", "ctrl+c":
@@ -60,6 +87,18 @@ func (m TaskList) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			m.cursor = 0
 		case "end", "G":
 			m.cursor = len(m.rows) - 1
+		case "left", "h":
+			if !m.collapseCurrent() {
+				m.selectParent()
+			}
+		case "right", "l":
+			if !m.expandCurrent() {
+				m.selectFirstChild()
+			}
+		case "r":
+			if m.load != nil {
+				return m, loadTasks(m.load)
+			}
 		}
 		m.clamp()
 	}
@@ -115,7 +154,8 @@ func (m TaskList) render() string {
 	output.WriteString("  ID                 STATUS       PRIORITY  TYPE      PARENT        TITLE\n")
 	end := min(len(m.rows), m.offset+m.visibleRows())
 	for index := m.offset; index < end; index++ {
-		bean := m.rows[index].bean
+		row := m.rows[index]
+		bean := row.bean
 		parent := bean.Parent
 		if parent == "" {
 			parent = "-"
@@ -124,11 +164,18 @@ func (m TaskList) render() string {
 		if index == m.cursor {
 			marker = ">"
 		}
-		line := fmt.Sprintf("%s %-18s %-12s %-9s %-9s %-13s %s", marker, bean.ID, bean.Status, bean.Priority, bean.Type, parent, bean.Title)
+		line := fmt.Sprintf("%s %-18s %-12s %-9s %-9s %-13s %s", marker, bean.ID, bean.Status, bean.Priority, bean.Type, parent, treeTitle(row, m.children, m.collapsed))
 		output.WriteString(truncate(line, m.width))
 		output.WriteByte('\n')
 	}
-	output.WriteString("\nj/k or arrows navigate  g/G first/last  q quit\n")
+	if m.reloadErr != nil {
+		fmt.Fprintf(&output, "\nReload failed: %v\n", m.reloadErr)
+	}
+	help := "j/k navigate  h/l or left/right collapse/expand  g/G first/last"
+	if m.load != nil {
+		help += "  r reload"
+	}
+	output.WriteString("\n" + help + "  q quit\n")
 	return output.String()
 }
 
@@ -137,8 +184,8 @@ func (m TaskList) compactView() string {
 	if len(m.beans) == 0 {
 		lines = append(lines, "No beans found.")
 	} else {
-		bean := m.rows[m.cursor].bean
-		lines = append(lines, truncate(fmt.Sprintf("> %s  %s  %s", bean.ID, bean.Status, bean.Title), m.width))
+		row := m.rows[m.cursor]
+		lines = append(lines, truncate(fmt.Sprintf("> %s  %s  %s", row.bean.ID, row.bean.Status, treeTitle(row, m.children, m.collapsed)), m.width))
 	}
 	if m.height >= 3 {
 		lines = append(lines, "q quit")
@@ -151,6 +198,49 @@ func (m *TaskList) rebuildRows() {
 	m.clamp()
 }
 
+func (m *TaskList) replaceBeans(loaded []beans.Bean) {
+	selectedID := ""
+	if len(m.rows) > 0 {
+		selectedID = m.rows[m.cursor].bean.ID
+	}
+	m.beans = loaded
+	m.expandAncestors(selectedID)
+	m.rebuildRows()
+	for index, row := range m.rows {
+		if row.bean.ID == selectedID {
+			m.cursor = index
+			m.clamp()
+			return
+		}
+	}
+}
+
+func (m *TaskList) expandAncestors(id string) {
+	byID := make(map[string]beans.Bean, len(m.beans))
+	for _, bean := range m.beans {
+		byID[bean.ID] = bean
+	}
+	visited := make(map[string]bool)
+	for id != "" && !visited[id] {
+		visited[id] = true
+		bean, found := byID[id]
+		if !found {
+			return
+		}
+		if bean.Parent != "" {
+			m.collapsed[bean.Parent] = false
+		}
+		id = bean.Parent
+	}
+}
+
+func loadTasks(load func() ([]beans.Bean, error)) tea.Cmd {
+	return func() tea.Msg {
+		loaded, err := load()
+		return taskListLoadedMessage{beans: loaded, err: err}
+	}
+}
+
 func (m *TaskList) toggleCurrent() {
 	if len(m.rows) == 0 {
 		return
@@ -161,6 +251,63 @@ func (m *TaskList) toggleCurrent() {
 	}
 	m.collapsed[bean.ID] = !m.collapsed[bean.ID]
 	m.rebuildRows()
+}
+
+func (m *TaskList) collapseCurrent() bool {
+	if len(m.rows) == 0 {
+		return false
+	}
+	id := m.rows[m.cursor].bean.ID
+	if !m.children[id] || m.collapsed[id] {
+		return false
+	}
+	m.collapsed[id] = true
+	m.rebuildRows()
+	return true
+}
+
+func (m *TaskList) expandCurrent() bool {
+	if len(m.rows) == 0 {
+		return false
+	}
+	id := m.rows[m.cursor].bean.ID
+	if !m.children[id] || !m.collapsed[id] {
+		return false
+	}
+	m.collapsed[id] = false
+	m.rebuildRows()
+	return true
+}
+
+func (m *TaskList) selectParent() {
+	if len(m.rows) == 0 || m.rows[m.cursor].depth == 0 {
+		return
+	}
+	depth := m.rows[m.cursor].depth
+	for index := m.cursor - 1; index >= 0; index-- {
+		if m.rows[index].depth < depth {
+			m.cursor = index
+			return
+		}
+	}
+}
+
+func (m *TaskList) selectFirstChild() {
+	if m.cursor+1 < len(m.rows) && m.rows[m.cursor+1].depth > m.rows[m.cursor].depth {
+		m.cursor++
+	}
+}
+
+func treeTitle(row taskRow, children, collapsed map[string]bool) string {
+	marker := " "
+	if children[row.bean.ID] {
+		if collapsed[row.bean.ID] {
+			marker = "+"
+		} else {
+			marker = "-"
+		}
+	}
+	return strings.Repeat("  ", row.depth) + marker + " " + row.bean.Title
 }
 
 func flattenTaskTree(loaded []beans.Bean, collapsed map[string]bool) ([]taskRow, map[string]bool) {
