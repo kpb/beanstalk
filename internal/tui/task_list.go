@@ -16,16 +16,26 @@ const (
 
 // TaskList displays a read-only, keyboard-navigable list of beans.
 type TaskList struct {
-	beans  []beans.Bean
-	cursor int
-	offset int
-	width  int
-	height int
+	beans     []beans.Bean
+	rows      []taskRow
+	collapsed map[string]bool
+	children  map[string]bool
+	cursor    int
+	offset    int
+	width     int
+	height    int
+}
+
+type taskRow struct {
+	bean  beans.Bean
+	depth int
 }
 
 // NewTaskList constructs a task-list model from already-loaded beans.
 func NewTaskList(loaded []beans.Bean) TaskList {
-	return TaskList{beans: loaded}
+	model := TaskList{beans: loaded, collapsed: make(map[string]bool)}
+	model.rebuildRows()
+	return model
 }
 
 func (m TaskList) Init() tea.Cmd {
@@ -49,7 +59,7 @@ func (m TaskList) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case "home", "g":
 			m.cursor = 0
 		case "end", "G":
-			m.cursor = len(m.beans) - 1
+			m.cursor = len(m.rows) - 1
 		}
 		m.clamp()
 	}
@@ -64,12 +74,12 @@ func (m TaskList) View() tea.View {
 }
 
 func (m *TaskList) clamp() {
-	if len(m.beans) == 0 {
+	if len(m.rows) == 0 {
 		m.cursor = 0
 		m.offset = 0
 		return
 	}
-	m.cursor = max(0, min(m.cursor, len(m.beans)-1))
+	m.cursor = max(0, min(m.cursor, len(m.rows)-1))
 	rows := m.visibleRows()
 	if m.cursor < m.offset {
 		m.offset = m.cursor
@@ -77,12 +87,12 @@ func (m *TaskList) clamp() {
 	if m.cursor >= m.offset+rows {
 		m.offset = m.cursor - rows + 1
 	}
-	m.offset = max(0, min(m.offset, max(0, len(m.beans)-rows)))
+	m.offset = max(0, min(m.offset, max(0, len(m.rows)-rows)))
 }
 
 func (m TaskList) visibleRows() int {
 	if m.height <= 0 {
-		return min(defaultVisibleRows, len(m.beans))
+		return min(defaultVisibleRows, len(m.rows))
 	}
 	if m.height <= fixedLines {
 		return 1
@@ -103,9 +113,9 @@ func (m TaskList) render() string {
 	}
 
 	output.WriteString("  ID                 STATUS       PRIORITY  TYPE      PARENT        TITLE\n")
-	end := min(len(m.beans), m.offset+m.visibleRows())
+	end := min(len(m.rows), m.offset+m.visibleRows())
 	for index := m.offset; index < end; index++ {
-		bean := m.beans[index]
+		bean := m.rows[index].bean
 		parent := bean.Parent
 		if parent == "" {
 			parent = "-"
@@ -127,13 +137,81 @@ func (m TaskList) compactView() string {
 	if len(m.beans) == 0 {
 		lines = append(lines, "No beans found.")
 	} else {
-		bean := m.beans[m.cursor]
+		bean := m.rows[m.cursor].bean
 		lines = append(lines, truncate(fmt.Sprintf("> %s  %s  %s", bean.ID, bean.Status, bean.Title), m.width))
 	}
 	if m.height >= 3 {
 		lines = append(lines, "q quit")
 	}
 	return strings.Join(lines[:min(len(lines), m.height)], "\n") + "\n"
+}
+
+func (m *TaskList) rebuildRows() {
+	m.rows, m.children = flattenTaskTree(m.beans, m.collapsed)
+	m.clamp()
+}
+
+func (m *TaskList) toggleCurrent() {
+	if len(m.rows) == 0 {
+		return
+	}
+	bean := m.rows[m.cursor].bean
+	if !m.children[bean.ID] {
+		return
+	}
+	m.collapsed[bean.ID] = !m.collapsed[bean.ID]
+	m.rebuildRows()
+}
+
+func flattenTaskTree(loaded []beans.Bean, collapsed map[string]bool) ([]taskRow, map[string]bool) {
+	byID := make(map[string]int, len(loaded))
+	for index, bean := range loaded {
+		if _, found := byID[bean.ID]; !found {
+			byID[bean.ID] = index
+		}
+	}
+
+	children := make(map[string][]int, len(loaded))
+	roots := make([]int, 0, len(loaded))
+	for index, bean := range loaded {
+		if bean.Parent == "" {
+			roots = append(roots, index)
+			continue
+		}
+		if _, found := byID[bean.Parent]; !found {
+			roots = append(roots, index)
+			continue
+		}
+		children[bean.Parent] = append(children[bean.Parent], index)
+	}
+
+	hasChildren := make(map[string]bool, len(children))
+	for parent := range children {
+		hasChildren[parent] = true
+	}
+	rows := make([]taskRow, 0, len(loaded))
+	visited := make([]bool, len(loaded))
+	var visit func(int, int, bool)
+	visit = func(index, depth int, visible bool) {
+		if visited[index] {
+			return
+		}
+		visited[index] = true
+		bean := loaded[index]
+		if visible {
+			rows = append(rows, taskRow{bean: bean, depth: depth})
+		}
+		for _, child := range children[bean.ID] {
+			visit(child, depth+1, visible && !collapsed[bean.ID])
+		}
+	}
+	for _, root := range roots {
+		visit(root, 0, true)
+	}
+	for index := range loaded {
+		visit(index, 0, true)
+	}
+	return rows, hasChildren
 }
 
 func truncate(value string, width int) string {

@@ -104,6 +104,68 @@ func TestTaskListHandlesEmptyAndQuit(t *testing.T) {
 	}
 }
 
+func TestFlattenTaskTreeOrdersHierarchyAndOrphansStably(t *testing.T) {
+	loaded := []beans.Bean{
+		{ID: "root-a", Title: "Root A"},
+		{ID: "child-a", Title: "Child A", Parent: "root-a"},
+		{ID: "grandchild", Title: "Grandchild", Parent: "child-a"},
+		{ID: "orphan", Title: "Orphan", Parent: "missing"},
+		{ID: "root-b", Title: "Root B"},
+		{ID: "child-b", Title: "Child B", Parent: "root-b"},
+	}
+
+	rows, children := flattenTaskTree(loaded, nil)
+	if got, want := rowIDs(rows), []string{"root-a", "child-a", "grandchild", "orphan", "root-b", "child-b"}; !equalStringSlices(got, want) {
+		t.Errorf("row IDs = %v, want %v", got, want)
+	}
+	if got, want := rowDepths(rows), []int{0, 1, 2, 0, 0, 1}; !equalIntSlices(got, want) {
+		t.Errorf("row depths = %v, want %v", got, want)
+	}
+	if !children["root-a"] || !children["child-a"] || !children["root-b"] || children["orphan"] {
+		t.Errorf("children = %v", children)
+	}
+}
+
+func TestFlattenTaskTreeHandlesCyclesWithoutDroppingRows(t *testing.T) {
+	loaded := []beans.Bean{
+		{ID: "root", Title: "Root"},
+		{ID: "cycle-a", Title: "Cycle A", Parent: "cycle-b"},
+		{ID: "cycle-b", Title: "Cycle B", Parent: "cycle-a"},
+	}
+
+	rows, _ := flattenTaskTree(loaded, nil)
+	if got, want := rowIDs(rows), []string{"root", "cycle-a", "cycle-b"}; !equalStringSlices(got, want) {
+		t.Errorf("row IDs = %v, want %v", got, want)
+	}
+	if got, want := rowDepths(rows), []int{0, 0, 1}; !equalIntSlices(got, want) {
+		t.Errorf("row depths = %v, want %v", got, want)
+	}
+}
+
+func TestTaskListCollapseUpdatesRowsAndClampsSelection(t *testing.T) {
+	model := NewTaskList([]beans.Bean{
+		{ID: "root", Title: "Root"},
+		{ID: "child", Title: "Child", Parent: "root"},
+		{ID: "grandchild", Title: "Grandchild", Parent: "child"},
+		{ID: "other", Title: "Other"},
+	})
+	model.cursor = 3
+	model.collapsed["root"] = true
+	model.rebuildRows()
+	if got, want := rowIDs(model.rows), []string{"root", "other"}; !equalStringSlices(got, want) {
+		t.Errorf("visible row IDs = %v, want %v", got, want)
+	}
+	if model.cursor != 1 || model.offset != 0 {
+		t.Errorf("model after collapse = %#v, want cursor 1 and offset 0", model)
+	}
+
+	model.cursor = 0
+	model.toggleCurrent()
+	if got, want := rowIDs(model.rows), []string{"root", "child", "grandchild", "other"}; !equalStringSlices(got, want) {
+		t.Errorf("visible row IDs after expand = %v, want %v", got, want)
+	}
+}
+
 func updateTaskList(t *testing.T, model TaskList, message tea.Msg) TaskList {
 	t.Helper()
 	updated, _ := model.Update(message)
@@ -133,4 +195,44 @@ func testBeans() []beans.Bean {
 		{ID: "project-b", Title: "Second", Status: "todo", Priority: "normal", Type: "task", Parent: "project-a"},
 		{ID: "project-c", Title: "Third", Status: "todo", Priority: "normal", Type: "task"},
 	}
+}
+
+func rowIDs(rows []taskRow) []string {
+	ids := make([]string, len(rows))
+	for index, row := range rows {
+		ids[index] = row.bean.ID
+	}
+	return ids
+}
+
+func rowDepths(rows []taskRow) []int {
+	depths := make([]int, len(rows))
+	for index, row := range rows {
+		depths[index] = row.depth
+	}
+	return depths
+}
+
+func equalIntSlices(left, right []int) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
+}
+
+func equalStringSlices(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
 }
