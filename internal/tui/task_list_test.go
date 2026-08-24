@@ -196,6 +196,36 @@ func TestTaskListRendersAndNavigatesHierarchy(t *testing.T) {
 	}
 }
 
+func TestTaskListNavigatesNestedHierarchy(t *testing.T) {
+	model := NewTaskList([]beans.Bean{
+		{ID: "root", Title: "Root"},
+		{ID: "child", Title: "Child", Parent: "root"},
+		{ID: "grandchild", Title: "Grandchild", Parent: "child"},
+		{ID: "sibling", Title: "Sibling", Parent: "root"},
+	})
+
+	model = updateTaskList(t, model, key("right"))
+	if selected := model.rows[model.cursor].bean.ID; selected != "child" {
+		t.Errorf("selected bean after right = %q, want child", selected)
+	}
+	model = updateTaskList(t, model, key("right"))
+	if selected := model.rows[model.cursor].bean.ID; selected != "grandchild" {
+		t.Errorf("selected bean after nested right = %q, want grandchild", selected)
+	}
+	model = updateTaskList(t, model, key("left"))
+	if selected := model.rows[model.cursor].bean.ID; selected != "child" {
+		t.Errorf("selected bean after left = %q, want child", selected)
+	}
+	model = updateTaskList(t, model, key("left"))
+	if got, want := rowIDs(model.rows), []string{"root", "child", "sibling"}; !equalStringSlices(got, want) {
+		t.Errorf("visible row IDs after collapsing child = %v, want %v", got, want)
+	}
+	model = updateTaskList(t, model, key("right"))
+	if got, want := rowIDs(model.rows), []string{"root", "child", "grandchild", "sibling"}; !equalStringSlices(got, want) {
+		t.Errorf("visible row IDs after expanding child = %v, want %v", got, want)
+	}
+}
+
 func TestTaskListReloadPreservesSelection(t *testing.T) {
 	model := NewTaskList(testBeans(), WithTaskLoader(func() ([]beans.Bean, error) {
 		return []beans.Bean{
@@ -219,6 +249,36 @@ func TestTaskListReloadPreservesSelection(t *testing.T) {
 	}
 	if view := model.View().Content; !strings.Contains(view, "r reload") {
 		t.Errorf("reload help missing from view = %q", view)
+	}
+}
+
+func TestTaskListReloadExpandsNewAncestorsAndFallsBackForMissingSelection(t *testing.T) {
+	model := NewTaskList([]beans.Bean{
+		{ID: "root", Title: "Root"},
+		{ID: "child", Title: "Child", Parent: "root"},
+		{ID: "selected", Title: "Selected"},
+	})
+	model.collapsed["root"] = true
+	model.rebuildRows()
+	model.cursor = 1
+	model = updateTaskList(t, model, taskListLoadedMessage{beans: []beans.Bean{
+		{ID: "root", Title: "Root"},
+		{ID: "child", Title: "Child", Parent: "root"},
+		{ID: "selected", Title: "Selected", Parent: "root"},
+	}})
+	if got, want := rowIDs(model.rows), []string{"root", "child", "selected"}; !equalStringSlices(got, want) {
+		t.Errorf("visible row IDs after reload = %v, want %v", got, want)
+	}
+	if selected := model.rows[model.cursor].bean.ID; selected != "selected" {
+		t.Errorf("selected bean after reload = %q, want selected", selected)
+	}
+
+	model = updateTaskList(t, model, taskListLoadedMessage{beans: []beans.Bean{
+		{ID: "root", Title: "Root"},
+		{ID: "child", Title: "Child", Parent: "root"},
+	}})
+	if model.cursor != 1 || model.rows[model.cursor].bean.ID != "child" {
+		t.Errorf("selection after selected bean disappears = %q at %d, want child at 1", model.rows[model.cursor].bean.ID, model.cursor)
 	}
 }
 
