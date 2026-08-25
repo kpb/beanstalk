@@ -77,6 +77,45 @@ func TestTaskListBoundsInitialAndShortTerminalViews(t *testing.T) {
 	}
 }
 
+func TestTaskListRendersSplitDetailPaneAndHelp(t *testing.T) {
+	loaded := testBeans()
+	loaded[0].Body = "Selected task body"
+	model := NewTaskList(loaded)
+	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: splitPaneWidth, Height: 18})
+	view := model.View().Content
+	for _, want := range []string{"Tasks (3)", "Task details", "Selected task body", " | "} {
+		if !strings.Contains(view, want) {
+			t.Errorf("split view does not contain %q:\n%s", want, view)
+		}
+	}
+
+	model = updateTaskList(t, model, key("?"))
+	for _, want := range []string{"Keyboard help", "tab or enter", "c  claim task", "s  change status"} {
+		if view := model.View().Content; !strings.Contains(view, want) {
+			t.Errorf("help view does not contain %q:\n%s", want, view)
+		}
+	}
+}
+
+func TestTaskListTogglesDetailOnNarrowTerminal(t *testing.T) {
+	loaded := testBeans()
+	loaded[0].Body = "Selected task body"
+	model := NewTaskList(loaded)
+	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: splitPaneWidth - 1, Height: 18})
+	if view := model.View().Content; strings.Contains(view, "Task details") {
+		t.Errorf("narrow list view unexpectedly shows detail pane:\n%s", view)
+	}
+
+	model = updateTaskList(t, model, key("tab"))
+	if view := model.View().Content; !strings.Contains(view, "Task details") || !strings.Contains(view, "Selected task body") {
+		t.Errorf("narrow detail view = %q", view)
+	}
+	model = updateTaskList(t, model, key("enter"))
+	if view := model.View().Content; strings.Contains(view, "Task details") {
+		t.Errorf("narrow list view after return = %q", view)
+	}
+}
+
 func TestTaskListHandlesEmptyAndQuit(t *testing.T) {
 	model := NewTaskList(nil)
 	model = updateTaskList(t, model, key("down"))
@@ -293,6 +332,12 @@ func updateTaskList(t *testing.T, model TaskList, message tea.Msg) TaskList {
 }
 
 func key(value string) tea.KeyPressMsg {
+	if value == "tab" {
+		return tea.KeyPressMsg(tea.Key{Code: tea.KeyTab})
+	}
+	if value == "enter" {
+		return tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter})
+	}
 	if value == "up" {
 		return tea.KeyPressMsg(tea.Key{Code: tea.KeyUp})
 	}

@@ -12,20 +12,23 @@ import (
 const (
 	fixedLines         = 5
 	defaultVisibleRows = 5
+	splitPaneWidth     = 100
 )
 
 // TaskList displays a read-only, keyboard-navigable list of beans.
 type TaskList struct {
-	beans     []beans.Bean
-	rows      []taskRow
-	collapsed map[string]bool
-	children  map[string]bool
-	load      func() ([]beans.Bean, error)
-	reloadErr error
-	cursor    int
-	offset    int
-	width     int
-	height    int
+	beans       []beans.Bean
+	rows        []taskRow
+	collapsed   map[string]bool
+	children    map[string]bool
+	load        func() ([]beans.Bean, error)
+	reloadErr   error
+	showDetails bool
+	showHelp    bool
+	cursor      int
+	offset      int
+	width       int
+	height      int
 }
 
 type taskRow struct {
@@ -79,6 +82,12 @@ func (m TaskList) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		switch message.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
+		case "?":
+			m.showHelp = !m.showHelp
+		case "tab", "enter":
+			if !m.usesSplitPane() && len(m.rows) > 0 {
+				m.showDetails = !m.showDetails
+			}
 		case "up", "k":
 			m.cursor--
 		case "down", "j":
@@ -143,7 +152,19 @@ func (m TaskList) render() string {
 	if m.height > 0 && m.height <= fixedLines {
 		return m.compactView()
 	}
+	if m.showHelp {
+		return m.helpView()
+	}
+	if m.usesSplitPane() {
+		return m.splitView()
+	}
+	if m.showDetails && len(m.rows) > 0 {
+		return renderTaskDetail(m.beans, m.rows[m.cursor].bean, m.width, m.height)
+	}
+	return m.listView()
+}
 
+func (m TaskList) listView() string {
 	var output strings.Builder
 	fmt.Fprintf(&output, "Beanstalk tasks (%d)\n\n", len(m.beans))
 	if len(m.beans) == 0 {
@@ -175,7 +196,10 @@ func (m TaskList) render() string {
 	if m.load != nil {
 		help += "  r reload"
 	}
-	output.WriteString("\n" + help + "  q quit\n")
+	if len(m.rows) > 0 {
+		help += "  tab details"
+	}
+	output.WriteString("\n" + help + "  ? help  q quit\n")
 	return output.String()
 }
 
