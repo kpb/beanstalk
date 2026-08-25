@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -40,6 +41,49 @@ func TestRenderTaskDetailWrapsAndBoundsOutput(t *testing.T) {
 		if len([]rune(line)) > 12 {
 			t.Errorf("line width = %d, want at most 12: %q", len([]rune(line)), line)
 		}
+	}
+}
+
+func TestRenderTaskDetailFitsWideAndNarrowPanes(t *testing.T) {
+	selected := beans.Bean{
+		ID:       "task",
+		Title:    "A detailed task title",
+		Status:   "in-progress",
+		Type:     "feature",
+		Priority: "high",
+		Body:     "Long body content remains readable in a narrow detail pane.",
+	}
+	for _, width := range []int{12, 80} {
+		t.Run("width "+strconv.Itoa(width), func(t *testing.T) {
+			detail := renderTaskDetail([]beans.Bean{selected}, selected, width, 0)
+			for _, line := range strings.Split(strings.TrimSuffix(detail, "\n"), "\n") {
+				if len([]rune(line)) > width {
+					t.Errorf("line width = %d, want at most %d: %q", len([]rune(line)), width, line)
+				}
+			}
+		})
+	}
+}
+
+func TestRenderTaskDetailTruncatesLongBodyToPaneHeight(t *testing.T) {
+	selected := beans.Bean{
+		ID:       "task",
+		Title:    "Task",
+		Status:   "todo",
+		Type:     "task",
+		Priority: "normal",
+		Body:     "body content that does not fit in the pane",
+	}
+	detail := renderTaskDetail([]beans.Bean{selected}, selected, 80, 14)
+	lines := strings.Split(strings.TrimSuffix(detail, "\n"), "\n")
+	if len(lines) != 14 {
+		t.Fatalf("detail line count = %d, want 14:\n%s", len(lines), detail)
+	}
+	if lines[len(lines)-1] != "Body:" {
+		t.Errorf("last rendered line = %q, want body heading", lines[len(lines)-1])
+	}
+	if strings.Contains(detail, selected.Body) {
+		t.Errorf("detail contains body beyond pane height:\n%s", detail)
 	}
 }
 
