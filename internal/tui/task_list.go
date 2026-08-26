@@ -24,7 +24,9 @@ type TaskList struct {
 	collapsed    map[string]bool
 	children     map[string]bool
 	load         func() ([]beans.Bean, error)
+	claim        func(string) error
 	updateStatus func(string, string) error
+	claimMessage string
 	reloadErr    error
 	statusErr    error
 	showDetails  bool
@@ -51,6 +53,11 @@ type taskStatusUpdatedMessage struct {
 	err error
 }
 
+type taskClaimedMessage struct {
+	id  string
+	err error
+}
+
 // TaskListOption configures a task-list model.
 type TaskListOption func(*TaskList)
 
@@ -58,6 +65,13 @@ type TaskListOption func(*TaskList)
 func WithTaskLoader(load func() ([]beans.Bean, error)) TaskListOption {
 	return func(model *TaskList) {
 		model.load = load
+	}
+}
+
+// WithTaskClaimer enables claiming todo tasks from the TUI.
+func WithTaskClaimer(claim func(string) error) TaskListOption {
+	return func(model *TaskList) {
+		model.claim = claim
 	}
 }
 
@@ -105,6 +119,15 @@ func (m TaskList) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		if m.load != nil {
 			return m, loadTasks(m.load)
 		}
+	case taskClaimedMessage:
+		if message.err != nil {
+			m.claimMessage = fmt.Sprintf("Claim failed: %v", message.err)
+			return m, nil
+		}
+		m.claimMessage = "Claimed " + message.id
+		if m.load != nil {
+			return m, loadTasks(m.load)
+		}
 	case tea.KeyPressMsg:
 		if m.showStatus {
 			return m.updateStatusPicker(message)
@@ -137,6 +160,16 @@ func (m TaskList) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case "r":
 			if m.load != nil {
 				return m, loadTasks(m.load)
+			}
+		case "c":
+			if m.claim != nil && len(m.rows) > 0 {
+				selected := m.rows[m.cursor].bean
+				if selected.Status != "todo" {
+					m.claimMessage = "Only todo tasks can be claimed"
+					return m, nil
+				}
+				m.claimMessage = ""
+				return m, claimTask(m.claim, selected.ID)
 			}
 		case "s":
 			m.openStatusPicker()
@@ -227,12 +260,18 @@ func (m TaskList) listView() string {
 	if m.reloadErr != nil {
 		fmt.Fprintf(&output, "\nReload failed: %v\n", m.reloadErr)
 	}
+	if m.claimMessage != "" {
+		fmt.Fprintf(&output, "\n%s\n", m.claimMessage)
+	}
 	help := "j/k navigate  h/l or left/right collapse/expand  g/G first/last"
 	if m.load != nil {
 		help += "  r reload"
 	}
 	if len(m.rows) > 0 {
 		help += "  tab details"
+		if m.claim != nil {
+			help += "  c claim"
+		}
 		if m.updateStatus != nil {
 			help += "  s status"
 		}
@@ -281,11 +320,16 @@ func (m TaskList) compactView() string {
 	lines := []string{fmt.Sprintf("Beanstalk tasks (%d)", len(m.beans))}
 	if len(m.beans) == 0 {
 		lines = append(lines, "No beans found.")
+	} else if m.claimMessage != "" && m.height == 3 {
+		lines = append(lines, truncate(m.claimMessage, m.width))
 	} else {
 		row := m.rows[m.cursor]
 		lines = append(lines, truncate(fmt.Sprintf("> %s  %s  %s", row.bean.ID, row.bean.Status, treeTitle(row, m.children, m.collapsed)), m.width))
 	}
 	if m.height >= 3 {
+		if m.claimMessage != "" && m.height != 3 {
+			lines = append(lines, truncate(m.claimMessage, m.width))
+		}
 		lines = append(lines, "q quit")
 	}
 	return strings.Join(lines[:min(len(lines), m.height)], "\n") + "\n"
@@ -342,6 +386,12 @@ func loadTasks(load func() ([]beans.Bean, error)) tea.Cmd {
 func updateTaskStatus(update func(string, string) error, id, status string) tea.Cmd {
 	return func() tea.Msg {
 		return taskStatusUpdatedMessage{err: update(id, status)}
+	}
+}
+
+func claimTask(claim func(string) error, id string) tea.Cmd {
+	return func() tea.Msg {
+		return taskClaimedMessage{id: id, err: claim(id)}
 	}
 }
 

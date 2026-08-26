@@ -21,6 +21,8 @@ ID, status, priority, type, parent, and title.
 | `l` or Right arrow | Expand the selected task or select its first child |
 | Tab or Enter | Toggle the detail view on narrow terminals |
 | `r` | Reload tasks |
+| `c` | Claim the selected `todo` task |
+| `s` | Change the selected task's status |
 | `?` | Show keyboard help |
 | `q` or Ctrl-C | Exit |
 
@@ -30,8 +32,14 @@ Press `s` to open the selected task's status picker. Use the arrow keys or `j`/`
 `completed`, or `scrapped`, then press Enter to save. Press Esc to cancel. The TUI reloads after a successful save and
 retains the selected task when it remains available.
 
-The TUI does not create, edit task metadata or bodies, or claim tasks. Use the [CLI guide][cli-guide] for those
-workflow actions.
+## Claim Tasks
+
+Press `c` to atomically claim a selected `todo` task. Successful claims change its status to `in-progress` and reload
+the task list while retaining the selected task. Claim conflicts and other failures are displayed without exiting the
+TUI.
+
+The TUI does not create tasks or edit task metadata or bodies. Use the [CLI guide][cli-guide] for those workflow
+actions.
 
 ## Terminal Behavior
 

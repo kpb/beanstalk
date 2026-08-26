@@ -81,7 +81,10 @@ func TestTaskListBoundsInitialAndShortTerminalViews(t *testing.T) {
 func TestTaskListRendersSplitDetailPaneAndHelp(t *testing.T) {
 	loaded := testBeans()
 	loaded[0].Body = "Selected task body"
-	model := NewTaskList(loaded)
+	model := NewTaskList(loaded,
+		WithTaskClaimer(func(string) error { return nil }),
+		WithStatusUpdater(func(string, string) error { return nil }),
+	)
 	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: splitPaneWidth, Height: 18})
 	view := model.View().Content
 	for _, want := range []string{"Tasks (3)", "Task details", "Selected task body", " | "} {
@@ -91,7 +94,7 @@ func TestTaskListRendersSplitDetailPaneAndHelp(t *testing.T) {
 	}
 
 	model = updateTaskList(t, model, key("?"))
-	for _, want := range []string{"Keyboard help", "tab or enter", "s  change selected task status", "enter save"} {
+	for _, want := range []string{"Keyboard help", "tab or enter", "c  claim selected todo task", "s  change selected task status", "enter save"} {
 		if view := model.View().Content; !strings.Contains(view, want) {
 			t.Errorf("help view does not contain %q:\n%s", want, view)
 		}
@@ -157,6 +160,72 @@ func TestTaskListChangesStatusAndReloadsPreservingSelection(t *testing.T) {
 	}
 }
 
+func TestTaskListClaimsTodoTaskAndReloadsPreservingSelection(t *testing.T) {
+	claimedID := ""
+	model := NewTaskList(testBeans(),
+		WithTaskClaimer(func(id string) error {
+			claimedID = id
+			return nil
+		}),
+		WithTaskLoader(func() ([]beans.Bean, error) {
+			loaded := testBeans()
+			loaded[1].Status = "in-progress"
+			return loaded, nil
+		}),
+	)
+	model = updateTaskList(t, model, key("down"))
+	updated, command := model.Update(key("c"))
+	if command == nil {
+		t.Fatal("claim command is nil")
+	}
+	updated, command = updated.(TaskList).Update(command())
+	if command == nil {
+		t.Fatal("reload command is nil")
+	}
+	model = updateTaskList(t, updated.(TaskList), command())
+	if claimedID != "project-b" {
+		t.Errorf("claimed ID = %q, want project-b", claimedID)
+	}
+	if model.rows[model.cursor].bean.ID != "project-b" || model.rows[model.cursor].bean.Status != "in-progress" {
+		t.Errorf("model after claim = %#v", model)
+	}
+	if view := model.View().Content; !strings.Contains(view, "Claimed project-b") {
+		t.Errorf("claim success view = %q", view)
+	}
+}
+
+func TestTaskListHandlesClaimFailuresWithoutQuitting(t *testing.T) {
+	model := NewTaskList(testBeans(), WithTaskClaimer(func(string) error {
+		return beans.ErrBeanNotClaimable
+	}))
+	updated, command := model.Update(key("c"))
+	if command == nil {
+		t.Fatal("claim command is nil")
+	}
+	model = updateTaskList(t, updated.(TaskList), command())
+	if view := model.View().Content; !strings.Contains(view, "Claim failed: bean is not available to claim") {
+		t.Errorf("claim failure view = %q", view)
+	}
+}
+
+func TestTaskListOnlyClaimsTodoTasks(t *testing.T) {
+	claims := 0
+	loaded := testBeans()
+	loaded[0].Status = "in-progress"
+	model := NewTaskList(loaded, WithTaskClaimer(func(string) error {
+		claims++
+		return nil
+	}))
+	updated, command := model.Update(key("c"))
+	if command != nil {
+		t.Fatal("claim command is not nil for an in-progress task")
+	}
+	model = updated.(TaskList)
+	if claims != 0 || !strings.Contains(model.View().Content, "Only todo tasks can be claimed") {
+		t.Errorf("model after in-progress claim = %#v, claims = %d", model, claims)
+	}
+}
+
 func TestTaskListKeepsStatusPickerOpenAfterUpdateFailure(t *testing.T) {
 	updateError := errors.New("disk unavailable")
 	model := NewTaskList(testBeans(), WithStatusUpdater(func(string, string) error {
@@ -188,6 +257,25 @@ func TestTaskListRendersStatusPickerOnShortTerminals(t *testing.T) {
 	model = updateTaskList(t, model, key("down"))
 	if view := model.View().Content; !strings.Contains(view, "> in-progress") {
 		t.Errorf("compact status picker after selection = %q", view)
+	}
+}
+
+func TestTaskListReservesSpaceForClaimFeedback(t *testing.T) {
+	loaded := append(testBeans(),
+		beans.Bean{ID: "project-d", Title: "Fourth"},
+		beans.Bean{ID: "project-e", Title: "Fifth"},
+		beans.Bean{ID: "project-f", Title: "Sixth"},
+	)
+	model := NewTaskList(loaded, WithTaskClaimer(func(string) error { return nil }))
+	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: 200, Height: 8})
+	model.claimMessage = "Claimed project-a"
+	if view := model.View().Content; !strings.Contains(view, "Claimed project-a") || !strings.Contains(view, "q quit") {
+		t.Errorf("split view with claim feedback = %q", view)
+	}
+
+	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: 40, Height: 3})
+	if view := model.View().Content; !strings.Contains(view, "Claimed project-a") || !strings.Contains(view, "q quit") {
+		t.Errorf("compact view with claim feedback = %q", view)
 	}
 }
 

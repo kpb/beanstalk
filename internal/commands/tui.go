@@ -29,6 +29,10 @@ func newTUICommand() *cobra.Command {
 				tui.WithTaskLoader(func() ([]beans.Bean, error) {
 					return loadTUITasks(workingDirectory)
 				}),
+				tui.WithTaskClaimer(func(id string) error {
+					_, err := beans.Claim(workingDirectory, id, time.Now())
+					return err
+				}),
 				tui.WithStatusUpdater(func(id, status string) error {
 					_, err := beans.UpdateStatus(workingDirectory, id, status, time.Now())
 					return err

@@ -18,7 +18,14 @@ func (m TaskList) splitView() string {
 
 func (m TaskList) treePane(width int) []string {
 	lines := []string{fmt.Sprintf("Tasks (%d)", len(m.beans)), ""}
-	rows := max(1, m.height-4)
+	notices := make([]string, 0, 2)
+	if m.reloadErr != nil {
+		notices = append(notices, fmt.Sprintf("Reload failed: %v", m.reloadErr))
+	}
+	if m.claimMessage != "" {
+		notices = append(notices, m.claimMessage)
+	}
+	rows := max(1, m.height-3-len(notices))
 	end := min(len(m.rows), m.offset+rows)
 	for index := m.offset; index < end; index++ {
 		row := m.rows[index]
@@ -28,10 +35,17 @@ func (m TaskList) treePane(width int) []string {
 		}
 		lines = append(lines, truncate(fmt.Sprintf("%s %s  %s  %s", marker, row.bean.ID, row.bean.Status, treeTitle(row, m.children, m.collapsed)), width))
 	}
-	if m.reloadErr != nil {
-		lines = append(lines, "", truncate(fmt.Sprintf("Reload failed: %v", m.reloadErr), width))
+	for _, notice := range notices {
+		lines = append(lines, truncate(notice, width))
 	}
-	lines = append(lines, "", "j/k navigate  h/l tree  s status  ? help  q quit")
+	help := "j/k navigate  h/l tree"
+	if m.claim != nil {
+		help += "  c claim"
+	}
+	if m.updateStatus != nil {
+		help += "  s status"
+	}
+	lines = append(lines, help+"  ? help  q quit")
 	return fitPaneLines(lines, width, m.height)
 }
 
@@ -80,11 +94,14 @@ func (m TaskList) helpView() string {
 		"g/G or home/end  first or last task",
 		"tab or enter  show selected task on narrow terminals",
 		"r  reload tasks",
-		"s  change selected task status",
-		"    j/k select  enter save  esc cancel",
-		"?  close help",
-		"q or ctrl+c  quit",
 	}
+	if m.claim != nil {
+		lines = append(lines, "c  claim selected todo task")
+	}
+	if m.updateStatus != nil {
+		lines = append(lines, "s  change selected task status", "    j/k select  enter save  esc cancel")
+	}
+	lines = append(lines, "?  close help", "q or ctrl+c  quit")
 	return boundDetail(lines, m.width, m.height)
 }
 
