@@ -15,20 +15,26 @@ const (
 	splitPaneWidth     = 100
 )
 
+var statuses = []string{"todo", "in-progress", "completed", "scrapped"}
+
 // TaskList displays a read-only, keyboard-navigable list of beans.
 type TaskList struct {
-	beans       []beans.Bean
-	rows        []taskRow
-	collapsed   map[string]bool
-	children    map[string]bool
-	load        func() ([]beans.Bean, error)
-	reloadErr   error
-	showDetails bool
-	showHelp    bool
-	cursor      int
-	offset      int
-	width       int
-	height      int
+	beans        []beans.Bean
+	rows         []taskRow
+	collapsed    map[string]bool
+	children     map[string]bool
+	load         func() ([]beans.Bean, error)
+	updateStatus func(string, string) error
+	reloadErr    error
+	statusErr    error
+	showDetails  bool
+	showHelp     bool
+	showStatus   bool
+	cursor       int
+	offset       int
+	statusCursor int
+	width        int
+	height       int
 }
 
 type taskRow struct {
@@ -41,6 +47,10 @@ type taskListLoadedMessage struct {
 	err   error
 }
 
+type taskStatusUpdatedMessage struct {
+	err error
+}
+
 // TaskListOption configures a task-list model.
 type TaskListOption func(*TaskList)
 
@@ -48,6 +58,13 @@ type TaskListOption func(*TaskList)
 func WithTaskLoader(load func() ([]beans.Bean, error)) TaskListOption {
 	return func(model *TaskList) {
 		model.load = load
+	}
+}
+
+// WithStatusUpdater enables changing a selected task's status from the TUI.
+func WithStatusUpdater(update func(string, string) error) TaskListOption {
+	return func(model *TaskList) {
+		model.updateStatus = update
 	}
 }
 
@@ -78,7 +95,20 @@ func (m TaskList) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.reloadErr = nil
 		m.replaceBeans(message.beans)
+	case taskStatusUpdatedMessage:
+		if message.err != nil {
+			m.statusErr = message.err
+			return m, nil
+		}
+		m.showStatus = false
+		m.statusErr = nil
+		if m.load != nil {
+			return m, loadTasks(m.load)
+		}
 	case tea.KeyPressMsg:
+		if m.showStatus {
+			return m.updateStatusPicker(message)
+		}
 		switch message.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
@@ -108,6 +138,8 @@ func (m TaskList) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			if m.load != nil {
 				return m, loadTasks(m.load)
 			}
+		case "s":
+			m.openStatusPicker()
 		}
 		m.clamp()
 	}
@@ -149,6 +181,9 @@ func (m TaskList) visibleRows() int {
 }
 
 func (m TaskList) render() string {
+	if m.showStatus {
+		return m.statusPickerView()
+	}
 	if m.height > 0 && m.height <= fixedLines {
 		return m.compactView()
 	}
@@ -198,9 +233,48 @@ func (m TaskList) listView() string {
 	}
 	if len(m.rows) > 0 {
 		help += "  tab details"
+		if m.updateStatus != nil {
+			help += "  s status"
+		}
 	}
 	output.WriteString("\n" + help + "  ? help  q quit\n")
 	return output.String()
+}
+
+func (m *TaskList) openStatusPicker() {
+	if m.updateStatus == nil || len(m.rows) == 0 {
+		return
+	}
+	m.showStatus = true
+	m.statusErr = nil
+	m.statusCursor = 0
+	for index, status := range statuses {
+		if status == m.rows[m.cursor].bean.Status {
+			m.statusCursor = index
+			break
+		}
+	}
+}
+
+func (m TaskList) updateStatusPicker(message tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch message.String() {
+	case "q", "ctrl+c", "esc":
+		m.showStatus = false
+		m.statusErr = nil
+	case "up", "k":
+		m.statusCursor = max(0, m.statusCursor-1)
+	case "down", "j":
+		m.statusCursor = min(len(statuses)-1, m.statusCursor+1)
+	case "home", "g":
+		m.statusCursor = 0
+	case "end", "G":
+		m.statusCursor = len(statuses) - 1
+	case "enter":
+		id := m.rows[m.cursor].bean.ID
+		status := statuses[m.statusCursor]
+		return m, updateTaskStatus(m.updateStatus, id, status)
+	}
+	return m, nil
 }
 
 func (m TaskList) compactView() string {
@@ -262,6 +336,12 @@ func loadTasks(load func() ([]beans.Bean, error)) tea.Cmd {
 	return func() tea.Msg {
 		loaded, err := load()
 		return taskListLoadedMessage{beans: loaded, err: err}
+	}
+}
+
+func updateTaskStatus(update func(string, string) error, id, status string) tea.Cmd {
+	return func() tea.Msg {
+		return taskStatusUpdatedMessage{err: update(id, status)}
 	}
 }
 

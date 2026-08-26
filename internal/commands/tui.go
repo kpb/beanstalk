@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/kpb/beanstalk/internal/beans"
@@ -24,9 +25,15 @@ func newTUICommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_, err = tea.NewProgram(tui.NewTaskList(loaded, tui.WithTaskLoader(func() ([]beans.Bean, error) {
-				return loadTUITasks(workingDirectory)
-			})), tea.WithInput(command.InOrStdin()), tea.WithOutput(command.OutOrStdout())).Run()
+			_, err = tea.NewProgram(tui.NewTaskList(loaded,
+				tui.WithTaskLoader(func() ([]beans.Bean, error) {
+					return loadTUITasks(workingDirectory)
+				}),
+				tui.WithStatusUpdater(func(id, status string) error {
+					_, err := beans.UpdateStatus(workingDirectory, id, status, time.Now())
+					return err
+				}),
+			), tea.WithInput(command.InOrStdin()), tea.WithOutput(command.OutOrStdout())).Run()
 			return err
 		},
 	}

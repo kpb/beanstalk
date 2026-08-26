@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -90,7 +91,7 @@ func TestTaskListRendersSplitDetailPaneAndHelp(t *testing.T) {
 	}
 
 	model = updateTaskList(t, model, key("?"))
-	for _, want := range []string{"Keyboard help", "tab or enter", "c  claim task", "s  change status"} {
+	for _, want := range []string{"Keyboard help", "tab or enter", "s  change selected task status", "enter save"} {
 		if view := model.View().Content; !strings.Contains(view, want) {
 			t.Errorf("help view does not contain %q:\n%s", want, view)
 		}
@@ -113,6 +114,80 @@ func TestTaskListTogglesDetailOnNarrowTerminal(t *testing.T) {
 	model = updateTaskList(t, model, key("enter"))
 	if view := model.View().Content; strings.Contains(view, "Task details") {
 		t.Errorf("narrow list view after return = %q", view)
+	}
+}
+
+func TestTaskListChangesStatusAndReloadsPreservingSelection(t *testing.T) {
+	updatedStatus := ""
+	model := NewTaskList(testBeans(),
+		WithStatusUpdater(func(id, status string) error {
+			if id != "project-b" {
+				t.Errorf("updated ID = %q, want project-b", id)
+			}
+			updatedStatus = status
+			return nil
+		}),
+		WithTaskLoader(func() ([]beans.Bean, error) {
+			loaded := testBeans()
+			loaded[1].Status = updatedStatus
+			return loaded, nil
+		}),
+	)
+	model = updateTaskList(t, model, key("down"))
+	model = updateTaskList(t, model, key("s"))
+	if view := model.View().Content; !strings.Contains(view, "Change task status") || !strings.Contains(view, "> todo") {
+		t.Errorf("status picker view = %q", view)
+	}
+	model = updateTaskList(t, model, key("down"))
+	updated, command := model.Update(key("enter"))
+	if command == nil {
+		t.Fatal("status update command is nil")
+	}
+	list := updated.(TaskList)
+	updated, command = list.Update(command())
+	if command == nil {
+		t.Fatal("reload command is nil")
+	}
+	model = updateTaskList(t, updated.(TaskList), command())
+	if updatedStatus != "in-progress" {
+		t.Errorf("updated status = %q, want in-progress", updatedStatus)
+	}
+	if model.showStatus || model.rows[model.cursor].bean.ID != "project-b" || model.rows[model.cursor].bean.Status != "in-progress" {
+		t.Errorf("model after status update = %#v", model)
+	}
+}
+
+func TestTaskListKeepsStatusPickerOpenAfterUpdateFailure(t *testing.T) {
+	updateError := errors.New("disk unavailable")
+	model := NewTaskList(testBeans(), WithStatusUpdater(func(string, string) error {
+		return updateError
+	}))
+	model = updateTaskList(t, model, key("s"))
+	updated, command := model.Update(key("enter"))
+	if command == nil {
+		t.Fatal("status update command is nil")
+	}
+	model = updateTaskList(t, updated.(TaskList), command())
+	if !model.showStatus || !errors.Is(model.statusErr, updateError) {
+		t.Errorf("model after status update failure = %#v", model)
+	}
+	if view := model.View().Content; !strings.Contains(view, "Update failed: disk unavailable") {
+		t.Errorf("status failure view = %q", view)
+	}
+}
+
+func TestTaskListRendersStatusPickerOnShortTerminals(t *testing.T) {
+	model := NewTaskList(testBeans(), WithStatusUpdater(func(string, string) error {
+		return nil
+	}))
+	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: 40, Height: fixedLines})
+	model = updateTaskList(t, model, key("s"))
+	if view := model.View().Content; !strings.Contains(view, "Change status") || !strings.Contains(view, "> todo") {
+		t.Errorf("compact status picker view = %q", view)
+	}
+	model = updateTaskList(t, model, key("down"))
+	if view := model.View().Content; !strings.Contains(view, "> in-progress") {
+		t.Errorf("compact status picker after selection = %q", view)
 	}
 }
 

@@ -31,7 +31,7 @@ func (m TaskList) treePane(width int) []string {
 	if m.reloadErr != nil {
 		lines = append(lines, "", truncate(fmt.Sprintf("Reload failed: %v", m.reloadErr), width))
 	}
-	lines = append(lines, "", "j/k navigate  h/l tree  ? help  q quit")
+	lines = append(lines, "", "j/k navigate  h/l tree  s status  ? help  q quit")
 	return fitPaneLines(lines, width, m.height)
 }
 
@@ -80,10 +80,39 @@ func (m TaskList) helpView() string {
 		"g/G or home/end  first or last task",
 		"tab or enter  show selected task on narrow terminals",
 		"r  reload tasks",
-		"c  claim task (available in a later workflow step)",
-		"s  change status (available in a later workflow step)",
+		"s  change selected task status",
+		"    j/k select  enter save  esc cancel",
 		"?  close help",
 		"q or ctrl+c  quit",
 	}
+	return boundDetail(lines, m.width, m.height)
+}
+
+func (m TaskList) statusPickerView() string {
+	selected := m.rows[m.cursor].bean
+	if m.height > 0 && m.height <= fixedLines {
+		lines := []string{
+			"Change status",
+			"> " + statuses[m.statusCursor],
+			"j/k select  enter save",
+			"esc cancel",
+		}
+		if m.statusErr != nil {
+			lines = append(lines, fmt.Sprintf("Update failed: %v", m.statusErr))
+		}
+		return boundDetail(lines, m.width, m.height)
+	}
+	lines := []string{"Change task status", "", selected.ID + " " + selected.Title, ""}
+	for index, status := range statuses {
+		marker := " "
+		if index == m.statusCursor {
+			marker = ">"
+		}
+		lines = append(lines, marker+" "+status)
+	}
+	if m.statusErr != nil {
+		lines = append(lines, "", fmt.Sprintf("Update failed: %v", m.statusErr))
+	}
+	lines = append(lines, "", "j/k select  enter save  esc cancel")
 	return boundDetail(lines, m.width, m.height)
 }
