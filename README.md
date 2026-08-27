@@ -91,13 +91,13 @@ beanstalk list --status todo
 
 ### TUI
 
-Use the TUI to browse the same task list interactively, claim selected todo tasks, and change task status.
+Use the TUI to browse the task hierarchy, inspect task details, claim selected todo tasks, and change task status.
 
 ```bash
 beanstalk tui
 ```
 
-[Read the TUI guide][tui-guide] for navigation keys, displayed task data, and terminal behavior.
+[Read the TUI guide][tui-guide] for navigation keys, task mutations, displayed details, and terminal behavior.
 
 ## Development
 
