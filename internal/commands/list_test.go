@@ -73,6 +73,63 @@ func TestListCommandAcceptsRepeatedFilters(t *testing.T) {
 	}
 }
 
+func TestListCommandRendersHierarchyWithFilteredParentContext(t *testing.T) {
+	workingDirectory := initializedProject(t)
+	writeBean(t, workingDirectory, ".beans/project-parent--parent.md", beans.Bean{ID: "project-parent", Title: "Parent", Status: "completed", Type: "epic"})
+	writeBean(t, workingDirectory, ".beans/project-child-a--first-child.md", beans.Bean{ID: "project-child-a", Title: "First child", Status: "todo", Type: "task", Parent: "project-parent"})
+	writeBean(t, workingDirectory, ".beans/project-grandchild--grandchild.md", beans.Bean{ID: "project-grandchild", Title: "Grandchild", Status: "todo", Type: "task", Parent: "project-child-a"})
+	writeBean(t, workingDirectory, ".beans/project-child-b--second-child.md", beans.Bean{ID: "project-child-b", Title: "Second child", Status: "todo", Type: "task", Parent: "project-parent"})
+	t.Chdir(workingDirectory)
+
+	command := NewRootCommand()
+	output := new(bytes.Buffer)
+	command.SetOut(output)
+	command.SetArgs([]string{"list", "--status", "todo"})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("executing filtered list command: %v", err)
+	}
+	if got, want := output.String(), "project-parent  completed  epic  -  Parent\nproject-child-a  todo  task  project-parent  |- First child\nproject-grandchild  todo  task  project-child-a  |  `- Grandchild\nproject-child-b  todo  task  project-parent  `- Second child\n"; got != want {
+		t.Errorf("hierarchical list output = %q, want %q", got, want)
+	}
+}
+
+func TestListCommandReportsMalformedParentHierarchy(t *testing.T) {
+	tests := []struct {
+		name  string
+		beans []beans.Bean
+		want  string
+	}{
+		{
+			name:  "missing parent",
+			beans: []beans.Bean{{ID: "project-child", Title: "Child", Status: "todo", Type: "task", Parent: "missing"}},
+			want:  "parent bean not found: missing",
+		},
+		{
+			name: "cycle",
+			beans: []beans.Bean{
+				{ID: "project-a", Title: "A", Status: "todo", Type: "task", Parent: "project-b"},
+				{ID: "project-b", Title: "B", Status: "todo", Type: "task", Parent: "project-a"},
+			},
+			want: "parent link would create a cycle",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			workingDirectory := initializedProject(t)
+			for _, bean := range test.beans {
+				writeBean(t, workingDirectory, ".beans/"+bean.ID+"--task.md", bean)
+			}
+			t.Chdir(workingDirectory)
+
+			command := NewRootCommand()
+			command.SetArgs([]string{"list"})
+			if err := command.Execute(); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Errorf("list error = %v, want %q", err, test.want)
+			}
+		})
+	}
+}
+
 func TestListCommandRejectsInvalidArgumentsAndFilters(t *testing.T) {
 	workingDirectory := initializedProject(t)
 	t.Chdir(workingDirectory)
