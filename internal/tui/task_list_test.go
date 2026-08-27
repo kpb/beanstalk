@@ -245,6 +245,55 @@ func TestTaskListKeepsStatusPickerOpenAfterUpdateFailure(t *testing.T) {
 	}
 }
 
+func TestTaskListReportsReloadFailuresAfterMutations(t *testing.T) {
+	reloadError := errors.New("disk unavailable")
+
+	t.Run("status update", func(t *testing.T) {
+		model := NewTaskList(testBeans(),
+			WithStatusUpdater(func(string, string) error { return nil }),
+			WithTaskLoader(func() ([]beans.Bean, error) { return nil, reloadError }),
+		)
+		model = updateTaskList(t, model, key("s"))
+		updated, command := model.Update(key("enter"))
+		if command == nil {
+			t.Fatal("status update command is nil")
+		}
+		updated, command = updated.(TaskList).Update(command())
+		if command == nil {
+			t.Fatal("reload command is nil")
+		}
+		model = updateTaskList(t, updated.(TaskList), command())
+		if model.showStatus || !errors.Is(model.reloadErr, reloadError) {
+			t.Errorf("model after reload failure = %#v", model)
+		}
+		if view := model.View().Content; !strings.Contains(view, "Reload failed: disk unavailable") {
+			t.Errorf("reload failure view = %q", view)
+		}
+	})
+
+	t.Run("claim", func(t *testing.T) {
+		model := NewTaskList(testBeans(),
+			WithTaskClaimer(func(string) error { return nil }),
+			WithTaskLoader(func() ([]beans.Bean, error) { return nil, reloadError }),
+		)
+		updated, command := model.Update(key("c"))
+		if command == nil {
+			t.Fatal("claim command is nil")
+		}
+		updated, command = updated.(TaskList).Update(command())
+		if command == nil {
+			t.Fatal("reload command is nil")
+		}
+		model = updateTaskList(t, updated.(TaskList), command())
+		if !errors.Is(model.reloadErr, reloadError) || model.claimMessage != "Claimed project-a" {
+			t.Errorf("model after reload failure = %#v", model)
+		}
+		if view := model.View().Content; !strings.Contains(view, "Reload failed: disk unavailable") {
+			t.Errorf("reload failure view = %q", view)
+		}
+	})
+}
+
 func TestTaskListRendersStatusPickerOnShortTerminals(t *testing.T) {
 	model := NewTaskList(testBeans(), WithStatusUpdater(func(string, string) error {
 		return nil
