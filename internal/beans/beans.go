@@ -12,7 +12,18 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var ErrNotInitialized = errors.New("Beans project is not initialized; run beanstalk init first")
+var (
+	ErrNotInitialized      = errors.New("Beans project is not initialized; run beanstalk init first")
+	ErrInvalidBeanStatus   = errors.New("invalid bean status")
+	ErrInvalidBeanType     = errors.New("invalid bean type")
+	ErrInvalidBeanPriority = errors.New("invalid bean priority")
+)
+
+var (
+	validStatuses   = map[string]bool{"todo": true, "draft": true, "in-progress": true, "completed": true, "scrapped": true}
+	validTypes      = map[string]bool{"milestone": true, "epic": true, "bug": true, "feature": true, "task": true}
+	validPriorities = map[string]bool{"critical": true, "high": true, "normal": true, "low": true, "deferred": true}
+)
 
 type Config struct {
 	Beans struct {
@@ -76,6 +87,17 @@ func Directory(workingDirectory string, config Config) (string, error) {
 }
 
 func Load(workingDirectory string) ([]Bean, error) {
+	loaded, err := load(workingDirectory)
+	if err != nil {
+		return nil, err
+	}
+	if err := Validate(loaded); err != nil {
+		return nil, err
+	}
+	return loaded, nil
+}
+
+func load(workingDirectory string) ([]Bean, error) {
 	config, err := LoadConfig(workingDirectory)
 	if err != nil {
 		return nil, err
@@ -109,6 +131,26 @@ func Load(workingDirectory string) ([]Bean, error) {
 		return nil, fmt.Errorf("loading beans: %w", err)
 	}
 	return loaded, nil
+}
+
+// Validate checks the metadata Beanstalk supports while retaining unknown front-matter fields.
+func Validate(loaded []Bean) error {
+	for _, bean := range loaded {
+		if !validStatuses[bean.Status] {
+			return fmt.Errorf("%w %q: %s", ErrInvalidBeanStatus, bean.Status, bean.ID)
+		}
+		if !validTypes[bean.Type] {
+			return fmt.Errorf("%w %q: %s", ErrInvalidBeanType, bean.Type, bean.ID)
+		}
+		if !validPriorities[bean.Priority] {
+			return fmt.Errorf("%w %q: %s", ErrInvalidBeanPriority, bean.Priority, bean.ID)
+		}
+	}
+	byID, children, err := hierarchy(loaded)
+	if err != nil {
+		return err
+	}
+	return validateAcyclic(byID, children)
 }
 
 func parse(path, directory string) (Bean, error) {

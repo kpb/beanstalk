@@ -53,6 +53,12 @@ beanstalk update project-a1b2 --parent ""
 
 Parents must reference an existing task and cannot form cycles. Passing an empty `--parent` removes the parent link.
 
+## Imported Metadata Validation
+
+Beanstalk preserves unknown front-matter keys so compatible Beans files retain metadata it does not use. It validates the
+status, type, and priority values it supports, plus duplicate IDs and parent links. Invalid values, missing parents,
+and parent cycles prevent `list`, `milestones`, and the TUI from loading the project with the same diagnostic.
+
 Claim a todo task atomically before working on it:
 
 ```bash

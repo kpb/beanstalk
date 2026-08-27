@@ -27,6 +27,35 @@ func TestLoadTUITasksSortsAndReportsProjectErrors(t *testing.T) {
 	}
 }
 
+func TestLoadTUITasksReportsImportedTaskDiagnostics(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		bean beans.Bean
+		want string
+	}{
+		{
+			name: "unsupported metadata",
+			bean: beans.Bean{ID: "project-task", Title: "Task", Status: "unsupported", Type: "task"},
+			want: `invalid bean status "unsupported": project-task`,
+		},
+		{
+			name: "missing parent",
+			bean: beans.Bean{ID: "project-task", Title: "Task", Status: "todo", Type: "task", Parent: "missing"},
+			want: "parent bean not found: missing",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			workingDirectory := initializedProject(t)
+			writeBean(t, workingDirectory, ".beans/project-task--task.md", test.bean)
+
+			_, err := loadTUITasks(workingDirectory)
+			if err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Errorf("TUI load error = %v, want %q", err, test.want)
+			}
+		})
+	}
+}
+
 func TestTUICommandIsRegistered(t *testing.T) {
 	command := NewRootCommand()
 	found, _, err := command.Find([]string{"tui"})

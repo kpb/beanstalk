@@ -22,6 +22,7 @@ func TestUpdateCommandUpdatesStatusAndPreservesTaskContents(t *testing.T) {
 	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
 		t.Fatalf("writing bean: %v", err)
 	}
+	writeBean(t, workingDirectory, ".beans/project-parent--parent.md", beans.Bean{ID: "project-parent", Title: "Parent", Status: "todo", Type: "task"})
 	t.Chdir(workingDirectory)
 
 	command := NewRootCommand()
@@ -62,10 +63,13 @@ func TestUpdateCommandUpdatesStatusAndPreservesTaskContents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loading updated bean: %v", err)
 	}
-	if len(loaded) != 1 {
-		t.Fatalf("loaded beans = %d, want 1", len(loaded))
+	var bean beans.Bean
+	for _, loadedBean := range loaded {
+		if loadedBean.ID == "project-a1" {
+			bean = loadedBean
+			break
+		}
 	}
-	bean := loaded[0]
 	if bean.Status != "in-progress" || bean.Parent != "project-parent" || bean.Body != "Keep this body exactly." || !bean.CreatedAt.Equal(response.Bean.CreatedAt) || !bean.UpdatedAt.Equal(response.Bean.UpdatedAt) {
 		t.Errorf("loaded bean = %#v", bean)
 	}
@@ -130,6 +134,25 @@ func TestUpdateCommandChangesAndRemovesParent(t *testing.T) {
 	child, err = beans.Find(workingDirectory, "project-child")
 	if err != nil {
 		t.Fatalf("finding child: %v", err)
+	}
+	if child.Parent != "" {
+		t.Errorf("parent = %q, want empty", child.Parent)
+	}
+}
+
+func TestUpdateCommandRemovesDanglingParent(t *testing.T) {
+	workingDirectory := initializedProject(t)
+	writeBean(t, workingDirectory, ".beans/project-child--child.md", beans.Bean{ID: "project-child", Title: "Child", Status: "todo", Type: "task", Parent: "missing"})
+	t.Chdir(workingDirectory)
+
+	command := NewRootCommand()
+	command.SetArgs([]string{"update", "project-child", "--parent", ""})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("removing dangling parent: %v", err)
+	}
+	child, err := beans.Find(workingDirectory, "project-child")
+	if err != nil {
+		t.Fatalf("finding repaired child: %v", err)
 	}
 	if child.Parent != "" {
 		t.Errorf("parent = %q, want empty", child.Parent)

@@ -35,6 +35,7 @@ func TestListCommand(t *testing.T) {
 func TestListCommandFiltersAndJSON(t *testing.T) {
 	workingDirectory := initializedProject(t)
 	writeBean(t, workingDirectory, ".beans/project-a1--task.md", beans.Bean{ID: "project-a1", Slug: "task", Title: "Task", Status: "todo", Type: "task", Parent: "project-parent", Body: "Not included"})
+	writeBean(t, workingDirectory, ".beans/project-parent--parent.md", beans.Bean{ID: "project-parent", Title: "Parent", Status: "todo", Type: "epic"})
 	writeBean(t, workingDirectory, ".beans/project-b2--bug.md", beans.Bean{ID: "project-b2", Slug: "bug", Title: "Bug", Status: "todo", Type: "bug"})
 	t.Chdir(workingDirectory)
 
@@ -127,6 +128,18 @@ func TestListCommandReportsMalformedParentHierarchy(t *testing.T) {
 				t.Errorf("list error = %v, want %q", err, test.want)
 			}
 		})
+	}
+}
+
+func TestListCommandReportsImportedMetadataDiagnostics(t *testing.T) {
+	workingDirectory := initializedProject(t)
+	writeBean(t, workingDirectory, ".beans/project-task--task.md", beans.Bean{ID: "project-task", Title: "Task", Status: "unsupported", Type: "task"})
+	t.Chdir(workingDirectory)
+
+	command := NewRootCommand()
+	command.SetArgs([]string{"list"})
+	if err := command.Execute(); err == nil || !strings.Contains(err.Error(), `invalid bean status "unsupported": project-task`) {
+		t.Errorf("list error = %v", err)
 	}
 }
 

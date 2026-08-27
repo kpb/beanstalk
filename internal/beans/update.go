@@ -27,11 +27,14 @@ type UpdateFields struct {
 
 // Find returns the bean with the exact ID from the configured Beans directory.
 func Find(workingDirectory, id string) (Bean, error) {
-	loaded, err := Load(workingDirectory)
+	loaded, err := load(workingDirectory)
 	if err != nil {
 		return Bean{}, err
 	}
+	return find(loaded, id)
+}
 
+func find(loaded []Bean, id string) (Bean, error) {
 	var found *Bean
 	for index := range loaded {
 		if loaded[index].ID != id {

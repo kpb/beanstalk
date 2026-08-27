@@ -15,6 +15,9 @@ Beanstalk provides a Cobra-based CLI with text and JSON output, plus a Bubble Te
 claiming todo work, and changing task status. It reads and writes the current Beans on-disk format without bundling
 Beans' web, server, GraphQL, agent, or worktree features.
 
+Unknown front-matter keys remain intact for Beans-format compatibility; Beanstalk validates its supported metadata and
+task hierarchy when loading project task lists and milestones.
+
 ## Architecture Decisions
 
 See [Architecture Decision Records][architecture-decisions] for the project's durable technical decisions.

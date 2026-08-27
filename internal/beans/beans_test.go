@@ -102,12 +102,86 @@ func TestLoadAndRenderPreserveParent(t *testing.T) {
 	if err := os.WriteFile(path, contents, 0o644); err != nil {
 		t.Fatalf("writing bean: %v", err)
 	}
+	parentContents, err := Render(Bean{ID: "project-parent", Title: "Parent", Status: "todo", Type: "task"})
+	if err != nil {
+		t.Fatalf("rendering parent bean: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workingDirectory, ".beans", "project-parent--parent.md"), parentContents, 0o644); err != nil {
+		t.Fatalf("writing parent bean: %v", err)
+	}
 
 	loaded, err := Load(workingDirectory)
 	if err != nil {
 		t.Fatalf("loading beans: %v", err)
 	}
-	if len(loaded) != 1 || loaded[0].Parent != "project-parent" {
+	if len(loaded) != 2 || loaded[0].Parent != "project-parent" {
 		t.Errorf("loaded beans = %#v", loaded)
+	}
+}
+
+func TestLoadValidatesSupportedMetadataAndHierarchy(t *testing.T) {
+	tests := []struct {
+		name  string
+		beans []Bean
+		err   error
+		text  string
+	}{
+		{
+			name:  "unsupported status",
+			beans: []Bean{{ID: "project-a1", Title: "Task", Status: "unknown", Type: "task"}},
+			err:   ErrInvalidBeanStatus,
+			text:  `invalid bean status "unknown": project-a1`,
+		},
+		{
+			name:  "unsupported type",
+			beans: []Bean{{ID: "project-a1", Title: "Task", Status: "todo", Type: "unknown"}},
+			err:   ErrInvalidBeanType,
+			text:  `invalid bean type "unknown": project-a1`,
+		},
+		{
+			name:  "unsupported priority",
+			beans: []Bean{{ID: "project-a1", Title: "Task", Status: "todo", Type: "task", Priority: "unknown"}},
+			err:   ErrInvalidBeanPriority,
+			text:  `invalid bean priority "unknown": project-a1`,
+		},
+		{
+			name:  "missing parent",
+			beans: []Bean{{ID: "project-a1", Title: "Task", Status: "todo", Type: "task", Parent: "missing"}},
+			text:  "parent bean not found: missing",
+		},
+		{
+			name: "parent cycle",
+			beans: []Bean{
+				{ID: "project-a1", Title: "One", Status: "todo", Type: "task", Parent: "project-b2"},
+				{ID: "project-b2", Title: "Two", Status: "todo", Type: "task", Parent: "project-a1"},
+			},
+			err:  ErrParentCycle,
+			text: "parent link would create a cycle",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			workingDirectory := t.TempDir()
+			if err := os.Mkdir(filepath.Join(workingDirectory, ".beans"), 0o755); err != nil {
+				t.Fatalf("creating beans directory: %v", err)
+			}
+			if err := os.WriteFile(filepath.Join(workingDirectory, ".beans.yml"), []byte("beans:\n  path: .beans\n"), 0o644); err != nil {
+				t.Fatalf("writing config: %v", err)
+			}
+			for _, bean := range test.beans {
+				contents, err := Render(bean)
+				if err != nil {
+					t.Fatalf("rendering bean: %v", err)
+				}
+				if err := os.WriteFile(filepath.Join(workingDirectory, ".beans", bean.ID+"--task.md"), contents, 0o644); err != nil {
+					t.Fatalf("writing bean: %v", err)
+				}
+			}
+
+			_, err := Load(workingDirectory)
+			if err == nil || (test.err != nil && !errors.Is(err, test.err)) || !strings.Contains(err.Error(), test.text) {
+				t.Errorf("load error = %v, want %q", err, test.text)
+			}
+		})
 	}
 }

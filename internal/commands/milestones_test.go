@@ -81,3 +81,16 @@ func TestMilestonesCommandRejectsInvalidImportedHierarchy(t *testing.T) {
 		t.Errorf("milestones error = %v", err)
 	}
 }
+
+func TestMilestonesCommandReportsImportedMetadataDiagnostics(t *testing.T) {
+	workingDirectory := initializedProject(t)
+	writeBean(t, workingDirectory, ".beans/project-release--release.md", beans.Bean{ID: "project-release", Title: "Release", Status: "todo", Type: "milestone"})
+	writeBean(t, workingDirectory, ".beans/project-child--child.md", beans.Bean{ID: "project-child", Title: "Child", Status: "unsupported", Type: "task", Parent: "project-release"})
+	t.Chdir(workingDirectory)
+
+	command := NewRootCommand()
+	command.SetArgs([]string{"milestones"})
+	if err := command.Execute(); err == nil || !strings.Contains(err.Error(), `invalid bean status "unsupported": project-child`) {
+		t.Errorf("milestones error = %v", err)
+	}
+}
