@@ -27,7 +27,7 @@ func TestListCommand(t *testing.T) {
 	if err := command.Execute(); err != nil {
 		t.Fatalf("executing list command: %v", err)
 	}
-	if got, want := output.String(), "project-b2  in-progress  bug  -  Fix parser\nproject-a1  todo  task  -  Add login\nproject-c3  completed  task  -  Old task\n"; got != want {
+	if got, want := output.String(), "ID                  S  T  TITLE\nproject-b2          >  B  Fix parser\nproject-a1          o  T  Add login\nproject-c3          x  T  Old task\n"; got != want {
 		t.Errorf("list output = %q, want %q", got, want)
 	}
 }
@@ -68,7 +68,7 @@ func TestListCommandAcceptsRepeatedFilters(t *testing.T) {
 	if err := command.Execute(); err != nil {
 		t.Fatalf("executing list command: %v", err)
 	}
-	if got, want := output.String(), "project-a1  todo  task  -  Task\nproject-b2  draft  bug  -  Bug\n"; got != want {
+	if got, want := output.String(), "ID                  S  T  TITLE\nproject-a1          o  T  Task\nproject-b2          ?  B  Bug\n"; got != want {
 		t.Errorf("filtered list output = %q, want %q", got, want)
 	}
 }
@@ -88,7 +88,7 @@ func TestListCommandRendersHierarchyWithFilteredParentContext(t *testing.T) {
 	if err := command.Execute(); err != nil {
 		t.Fatalf("executing filtered list command: %v", err)
 	}
-	if got, want := output.String(), "project-parent  completed  epic  -  Parent\nproject-child-a  todo  task  project-parent  |- First child\nproject-grandchild  todo  task  project-child-a  |  `- Grandchild\nproject-child-b  todo  task  project-parent  `- Second child\n"; got != want {
+	if got, want := output.String(), "ID                  S  T  TITLE\nproject-parent      x  E  Parent\nproject-child-a     o  T  |- First child\nproject-grandchild  o  T  |  `- Grandchild\nproject-child-b     o  T  `- Second child\n"; got != want {
 		t.Errorf("hierarchical list output = %q, want %q", got, want)
 	}
 }
@@ -125,6 +125,33 @@ func TestListCommandReportsMalformedParentHierarchy(t *testing.T) {
 			command.SetArgs([]string{"list"})
 			if err := command.Execute(); err == nil || !strings.Contains(err.Error(), test.want) {
 				t.Errorf("list error = %v, want %q", err, test.want)
+			}
+		})
+	}
+}
+
+func TestListMarkers(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"draft status", statusMarker("draft"), "?"},
+		{"todo status", statusMarker("todo"), "o"},
+		{"in-progress status", statusMarker("in-progress"), ">"},
+		{"completed status", statusMarker("completed"), "x"},
+		{"scrapped status", statusMarker("scrapped"), "-"},
+		{"unknown status", statusMarker("unknown"), "!"},
+		{"milestone type", typeMarker("milestone"), "M"},
+		{"epic type", typeMarker("epic"), "E"},
+		{"bug type", typeMarker("bug"), "B"},
+		{"feature type", typeMarker("feature"), "F"},
+		{"task type", typeMarker("task"), "T"},
+		{"unknown type", typeMarker("unknown"), "!"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if test.got != test.want {
+				t.Errorf("marker = %q, want %q", test.got, test.want)
 			}
 		})
 	}

@@ -56,13 +56,9 @@ func newListCommand() *cobra.Command {
 				command.Println("No beans found.")
 				return nil
 			}
+			command.Printf("%-18s  S  T  TITLE\n", "ID")
 			for _, row := range rows {
-				bean := row.bean
-				parent := bean.Parent
-				if parent == "" {
-					parent = "-"
-				}
-				command.Printf("%s  %s  %s  %s  %s\n", bean.ID, bean.Status, bean.Type, parent, row.title)
+				command.Printf("%-18s  %s  %s  %s\n", row.bean.ID, statusMarker(row.bean.Status), typeMarker(row.bean.Type), row.title)
 			}
 			return nil
 		},
@@ -99,6 +95,40 @@ func filterBeans(loaded []beans.Bean, options listOptions) []beans.Bean {
 		filtered = append(filtered, bean)
 	}
 	return filtered
+}
+
+func statusMarker(status string) string {
+	switch status {
+	case "draft":
+		return "?"
+	case "todo":
+		return "o"
+	case "in-progress":
+		return ">"
+	case "completed":
+		return "x"
+	case "scrapped":
+		return "-"
+	default:
+		return "!"
+	}
+}
+
+func typeMarker(typeName string) string {
+	switch typeName {
+	case "milestone":
+		return "M"
+	case "epic":
+		return "E"
+	case "bug":
+		return "B"
+	case "feature":
+		return "F"
+	case "task":
+		return "T"
+	default:
+		return "!"
+	}
 }
 
 func listHierarchy(loaded, matched []beans.Bean) ([]listRow, error) {
