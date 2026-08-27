@@ -63,6 +63,9 @@ Add the following instruction to your project's `AGENTS.md`, `CLAUDE.md`, or equ
 `beanstalk prime` provides the implemented task-tracking workflow for coding agents. Beanstalk does not provide agent
 plugins or automatic hooks.
 
+Beanstalk dogfoods this workflow: this repository tracks its own project work as version-controlled Beans-format task
+files.
+
 ## Why?
 
 I/Kenneth enjoy using the Beans project but there are some missing features that are important to me.
