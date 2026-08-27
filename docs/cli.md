@@ -33,6 +33,18 @@ beanstalk list --status todo
 beanstalk list --type bug --json
 ```
 
+Without `--json`, list output is a sorted task tree with these columns:
+
+| Column | Meaning |
+| --- | --- |
+| `ID` | Task ID |
+| `S` | Status marker: `?` draft, `o` todo, `>` in-progress, `x` completed, or `-` scrapped |
+| `T` | Type marker: `M` milestone, `E` epic, `B` bug, `F` feature, or `T` task |
+| `TITLE` | Task title, indented with `|-` and `` `-`` tree connectors |
+
+Filtered text output includes a matching task's ancestors to retain its tree context. `--json` preserves the existing
+task schema and applies the requested filters without adding ancestor rows.
+
 Show one task, including its Markdown body:
 
 ```bash

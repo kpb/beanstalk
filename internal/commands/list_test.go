@@ -94,6 +94,27 @@ func TestListCommandRendersHierarchyWithFilteredParentContext(t *testing.T) {
 	}
 }
 
+func TestListCommandRendersOrderedTrees(t *testing.T) {
+	workingDirectory := initializedProject(t)
+	writeBean(t, workingDirectory, ".beans/project-zeta--zeta.md", beans.Bean{ID: "project-zeta", Title: "Zeta", Status: "todo", Type: "task"})
+	writeBean(t, workingDirectory, ".beans/project-second--second.md", beans.Bean{ID: "project-second", Title: "Second", Status: "todo", Type: "task", Parent: "project-alpha"})
+	writeBean(t, workingDirectory, ".beans/project-alpha--alpha.md", beans.Bean{ID: "project-alpha", Title: "Alpha", Status: "todo", Type: "epic"})
+	writeBean(t, workingDirectory, ".beans/project-grandchild--grandchild.md", beans.Bean{ID: "project-grandchild", Title: "Child", Status: "todo", Type: "task", Parent: "project-first"})
+	writeBean(t, workingDirectory, ".beans/project-first--first.md", beans.Bean{ID: "project-first", Title: "First", Status: "todo", Type: "task", Parent: "project-alpha"})
+	t.Chdir(workingDirectory)
+
+	command := NewRootCommand()
+	output := new(bytes.Buffer)
+	command.SetOut(output)
+	command.SetArgs([]string{"list"})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("executing list command: %v", err)
+	}
+	if got, want := output.String(), "ID                  S  T  TITLE\nproject-alpha       o  E  Alpha\nproject-first       o  T  |- First\nproject-grandchild  o  T  |  `- Child\nproject-second      o  T  `- Second\nproject-zeta        o  T  Zeta\n"; got != want {
+		t.Errorf("list output = %q, want %q", got, want)
+	}
+}
+
 func TestListCommandReportsMalformedParentHierarchy(t *testing.T) {
 	tests := []struct {
 		name  string
