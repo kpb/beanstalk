@@ -120,6 +120,30 @@ func TestTaskListTogglesDetailOnNarrowTerminal(t *testing.T) {
 	}
 }
 
+func TestTaskListShowsMutationFeedbackInNarrowDetailView(t *testing.T) {
+	reloadError := errors.New("disk unavailable")
+	model := NewTaskList(testBeans(),
+		WithTaskClaimer(func(string) error { return nil }),
+		WithTaskLoader(func() ([]beans.Bean, error) { return nil, reloadError }),
+	)
+	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: splitPaneWidth - 1, Height: 18})
+	model = updateTaskList(t, model, key("tab"))
+	updated, command := model.Update(key("c"))
+	if command == nil {
+		t.Fatal("claim command is nil")
+	}
+	updated, command = updated.(TaskList).Update(command())
+	if command == nil {
+		t.Fatal("reload command is nil")
+	}
+	model = updateTaskList(t, updated.(TaskList), command())
+	for _, want := range []string{"Claimed project-a", "Reload failed: disk unavailable"} {
+		if view := model.View().Content; !strings.Contains(view, want) {
+			t.Errorf("detail view does not contain %q:\n%s", want, view)
+		}
+	}
+}
+
 func TestTaskListChangesStatusAndReloadsPreservingSelection(t *testing.T) {
 	updatedStatus := ""
 	model := NewTaskList(testBeans(),
@@ -157,6 +181,32 @@ func TestTaskListChangesStatusAndReloadsPreservingSelection(t *testing.T) {
 	}
 	if model.showStatus || model.rows[model.cursor].bean.ID != "project-b" || model.rows[model.cursor].bean.Status != "in-progress" {
 		t.Errorf("model after status update = %#v", model)
+	}
+}
+
+func TestTaskListPreservesDraftStatusInPicker(t *testing.T) {
+	updatedStatus := ""
+	model := NewTaskList([]beans.Bean{{ID: "project-draft", Title: "Draft", Status: "draft", Priority: "normal", Type: "task"}},
+		WithStatusUpdater(func(id, status string) error {
+			if id != "project-draft" {
+				t.Errorf("updated ID = %q, want project-draft", id)
+			}
+			updatedStatus = status
+			return nil
+		}),
+	)
+
+	model = updateTaskList(t, model, key("s"))
+	if view := model.View().Content; !strings.Contains(view, "> draft") {
+		t.Errorf("status picker view = %q", view)
+	}
+	updated, command := model.Update(key("enter"))
+	if command == nil {
+		t.Fatal("status update command is nil")
+	}
+	updated.(TaskList).Update(command())
+	if updatedStatus != "draft" {
+		t.Errorf("updated status = %q, want draft", updatedStatus)
 	}
 }
 

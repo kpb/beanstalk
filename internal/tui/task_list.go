@@ -15,7 +15,7 @@ const (
 	splitPaneWidth     = 100
 )
 
-var statuses = []string{"todo", "in-progress", "completed", "scrapped"}
+var statuses = []string{"draft", "todo", "in-progress", "completed", "scrapped"}
 
 // TaskList displays a read-only, keyboard-navigable list of beans.
 type TaskList struct {
@@ -227,7 +227,7 @@ func (m TaskList) render() string {
 		return m.splitView()
 	}
 	if m.showDetails && len(m.rows) > 0 {
-		return renderTaskDetail(m.beans, m.rows[m.cursor].bean, m.width, m.height)
+		return m.detailView()
 	}
 	return m.listView()
 }

@@ -18,13 +18,7 @@ func (m TaskList) splitView() string {
 
 func (m TaskList) treePane(width int) []string {
 	lines := []string{fmt.Sprintf("Tasks (%d)", len(m.beans)), ""}
-	notices := make([]string, 0, 2)
-	if m.reloadErr != nil {
-		notices = append(notices, fmt.Sprintf("Reload failed: %v", m.reloadErr))
-	}
-	if m.claimMessage != "" {
-		notices = append(notices, m.claimMessage)
-	}
+	notices := m.notices()
 	rows := max(1, m.height-3-len(notices))
 	end := min(len(m.rows), m.offset+rows)
 	for index := m.offset; index < end; index++ {
@@ -47,6 +41,28 @@ func (m TaskList) treePane(width int) []string {
 	}
 	lines = append(lines, help+"  ? help  q quit")
 	return fitPaneLines(lines, width, m.height)
+}
+
+func (m TaskList) detailView() string {
+	notices := m.notices()
+	if len(notices) == 0 {
+		return renderTaskDetail(m.beans, m.rows[m.cursor].bean, m.width, m.height)
+	}
+	details := strings.TrimSuffix(renderTaskDetail(m.beans, m.rows[m.cursor].bean, m.width, 0), "\n")
+	lines := append(notices, "")
+	lines = append(lines, strings.Split(details, "\n")...)
+	return boundDetail(lines, m.width, m.height)
+}
+
+func (m TaskList) notices() []string {
+	notices := make([]string, 0, 2)
+	if m.reloadErr != nil {
+		notices = append(notices, fmt.Sprintf("Reload failed: %v", m.reloadErr))
+	}
+	if m.claimMessage != "" {
+		notices = append(notices, m.claimMessage)
+	}
+	return notices
 }
 
 func detailLines(m TaskList) []string {

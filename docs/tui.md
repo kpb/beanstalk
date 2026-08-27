@@ -34,9 +34,10 @@ detail views.
 
 ## Status Changes
 
-Press `s` to open the selected task's status picker. Use the arrow keys or `j`/`k` to select `todo`, `in-progress`,
-`completed`, or `scrapped`, then press Enter to save. Press Esc to cancel. The TUI reloads after a successful save and
-retains the selected task when it remains available. Write and reload errors remain visible without exiting the TUI.
+Press `s` to open the selected task's status picker. Use the arrow keys or `j`/`k` to select `draft`, `todo`,
+`in-progress`, `completed`, or `scrapped`, then press Enter to save. Press Esc to cancel. The TUI reloads after a
+successful save and retains the selected task when it remains available. Write and reload errors remain visible without
+exiting the TUI.
 
 ## Claim Tasks
 

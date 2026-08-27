@@ -112,6 +112,9 @@ go vet ./...
 go run ./cmd/beanstalk version
 ```
 
+CI runs tests, vet, and a native build on Linux, macOS, and Windows. The executable TUI smoke test runs on Linux and
+macOS through a pseudoterminal; Windows receives the native task-file, locking, and executable build coverage.
+
 ## License
 
 Beanstalk is licensed under the GNU General Public License, version 3. See [LICENSE][license].
