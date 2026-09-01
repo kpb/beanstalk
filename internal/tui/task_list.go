@@ -4,15 +4,17 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/kpb/beanstalk/internal/beans"
 )
 
 const (
-	fixedLines         = 5
-	defaultVisibleRows = 5
-	splitPaneWidth     = 100
+	fixedLines          = 5
+	defaultVisibleRows  = 5
+	splitPaneWidth      = 100
+	taskRefreshInterval = time.Second
 )
 
 var statuses = []string{"draft", "todo", "in-progress", "completed", "scrapped"}
@@ -52,7 +54,10 @@ type taskListLoadedMessage struct {
 	err          error
 	showArchived bool
 	request      int
+	refresh      bool
 }
+
+type taskRefreshMessage struct{}
 
 type taskStatusUpdatedMessage struct {
 	err error
@@ -98,17 +103,30 @@ func NewTaskList(loaded []beans.Bean, options ...TaskListOption) TaskList {
 }
 
 func (m TaskList) Init() tea.Cmd {
-	return nil
+	if m.load == nil {
+		return nil
+	}
+	return nextTaskRefresh()
 }
 
 func (m TaskList) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	switch message := message.(type) {
+	case taskRefreshMessage:
+		next := nextTaskRefresh()
+		if m.load == nil || m.showStatus {
+			return m, next
+		}
+		load := m.requestRefresh()
+		return m, tea.Batch(next, load)
 	case tea.WindowSizeMsg:
 		m.width = message.Width
 		m.height = message.Height
 		m.clamp()
 	case taskListLoadedMessage:
 		if message.request != m.loadRequest {
+			return m, nil
+		}
+		if message.refresh && m.showStatus {
 			return m, nil
 		}
 		if message.err != nil {
@@ -396,14 +414,28 @@ func (m *TaskList) expandAncestors(id string) {
 }
 
 func (m *TaskList) requestLoad() tea.Cmd {
-	m.loadRequest++
-	return loadTasks(m.load, m.requestedArchived, m.loadRequest)
+	return m.requestTaskLoad(false)
 }
 
-func loadTasks(load func(bool) ([]beans.Bean, error), showArchived bool, request int) tea.Cmd {
+func (m *TaskList) requestRefresh() tea.Cmd {
+	return m.requestTaskLoad(true)
+}
+
+func (m *TaskList) requestTaskLoad(refresh bool) tea.Cmd {
+	m.loadRequest++
+	return loadTasks(m.load, m.requestedArchived, m.loadRequest, refresh)
+}
+
+func nextTaskRefresh() tea.Cmd {
+	return tea.Tick(taskRefreshInterval, func(time.Time) tea.Msg {
+		return taskRefreshMessage{}
+	})
+}
+
+func loadTasks(load func(bool) ([]beans.Bean, error), showArchived bool, request int, refresh bool) tea.Cmd {
 	return func() tea.Msg {
 		loaded, err := load(showArchived)
-		return taskListLoadedMessage{beans: loaded, err: err, showArchived: showArchived, request: request}
+		return taskListLoadedMessage{beans: loaded, err: err, showArchived: showArchived, request: request, refresh: refresh}
 	}
 }
 

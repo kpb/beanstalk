@@ -34,6 +34,18 @@ func TestTaskListNavigationAndBounds(t *testing.T) {
 	}
 }
 
+func TestTaskListInitStartsRefreshWhenLoaderIsConfigured(t *testing.T) {
+	if command := NewTaskList(testBeans()).Init(); command != nil {
+		t.Error("refresh command is configured without a loader")
+	}
+	model := NewTaskList(testBeans(), WithTaskLoader(func(bool) ([]beans.Bean, error) {
+		return nil, nil
+	}))
+	if command := model.Init(); command == nil {
+		t.Error("refresh command is nil with a loader")
+	}
+}
+
 func TestTaskListScrollsAndRenders(t *testing.T) {
 	model := NewTaskList(testBeans())
 	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: 54, Height: 7})
@@ -626,6 +638,130 @@ func TestTaskListUsesTheLatestArchivedToggleRequest(t *testing.T) {
 	model = updateTaskList(t, model, first())
 	if model.showArchived || model.requestedArchived || !equalStringSlices(rowIDs(model.rows), []string{"active"}) {
 		t.Errorf("model after rapid archive toggles = %#v", model)
+	}
+}
+
+func TestTaskListRefreshesChangedTasksPreservingSelection(t *testing.T) {
+	model := NewTaskList(testBeans(), WithTaskLoader(func(bool) ([]beans.Bean, error) {
+		return nil, nil
+	}))
+	model = updateTaskList(t, model, key("down"))
+	updated, command := model.Update(taskRefreshMessage{})
+	if command == nil {
+		t.Fatal("refresh command is nil")
+	}
+	model = updated.(TaskList)
+	loaded := testBeans()
+	loaded[1].Title = "Updated second"
+	model = updateTaskList(t, model, taskListLoadedMessage{beans: loaded, request: model.loadRequest})
+	if model.rows[model.cursor].bean.ID != "project-b" || model.rows[model.cursor].bean.Title != "Updated second" {
+		t.Errorf("model after refresh = %#v", model)
+	}
+}
+
+func TestTaskListRefreshRespectsArchivedVisibility(t *testing.T) {
+	active := []beans.Bean{{ID: "active", Title: "Active", Status: "todo", Type: "task"}}
+	archived := append(append([]beans.Bean{}, active...), beans.Bean{ID: "archived", Title: "Archived", Status: "completed", Type: "task"})
+	model := NewTaskList(active, WithTaskLoader(func(showArchived bool) ([]beans.Bean, error) {
+		if showArchived {
+			return archived, nil
+		}
+		return active, nil
+	}))
+	model.requestedArchived = true
+	updated, command := model.Update(taskRefreshMessage{})
+	if command == nil {
+		t.Fatal("refresh command is nil")
+	}
+	model = updated.(TaskList)
+	message := loadTasks(model.load, model.requestedArchived, model.loadRequest, true)()
+	model = updateTaskList(t, model, message)
+	if !model.showArchived || !equalStringSlices(rowIDs(model.rows), []string{"active", "archived"}) {
+		t.Errorf("model after archived refresh = %#v", model)
+	}
+}
+
+func TestTaskListDefersRefreshWhileStatusPickerIsOpen(t *testing.T) {
+	model := NewTaskList(testBeans(),
+		WithTaskLoader(func(bool) ([]beans.Bean, error) { return nil, nil }),
+		WithStatusUpdater(func(string, string) error { return nil }),
+	)
+	model = updateTaskList(t, model, key("s"))
+	updated, command := model.Update(taskRefreshMessage{})
+	if command == nil {
+		t.Fatal("refresh command is nil")
+	}
+	model = updated.(TaskList)
+	if !model.showStatus || model.loadRequest != 0 || model.rows[model.cursor].bean.ID != "project-a" {
+		t.Errorf("model after deferred refresh = %#v", model)
+	}
+}
+
+func TestTaskListIgnoresInFlightRefreshWhileStatusPickerIsOpen(t *testing.T) {
+	model := NewTaskList(testBeans(),
+		WithTaskLoader(func(bool) ([]beans.Bean, error) { return nil, nil }),
+		WithStatusUpdater(func(string, string) error { return nil }),
+	)
+	updated, command := model.Update(taskRefreshMessage{})
+	if command == nil {
+		t.Fatal("refresh command is nil")
+	}
+	model = updated.(TaskList)
+	request := model.loadRequest
+	model = updateTaskList(t, model, key("s"))
+	changed := []beans.Bean{{ID: "replacement", Title: "Replacement", Status: "todo", Type: "task"}}
+	model = updateTaskList(t, model, taskListLoadedMessage{beans: changed, request: request, refresh: true})
+	if !model.showStatus || model.rows[model.cursor].bean.ID != "project-a" {
+		t.Errorf("model after in-flight refresh = %#v", model)
+	}
+}
+
+func TestTaskListIgnoresStaleRefreshResults(t *testing.T) {
+	model := NewTaskList(testBeans(), WithTaskLoader(func(bool) ([]beans.Bean, error) {
+		return nil, nil
+	}))
+	updated, refresh := model.Update(taskRefreshMessage{})
+	if refresh == nil {
+		t.Fatal("refresh command is nil")
+	}
+	model = updated.(TaskList)
+	firstRequest := model.loadRequest
+	updated, reload := model.Update(key("r"))
+	if reload == nil {
+		t.Fatal("reload command is nil")
+	}
+	model = updated.(TaskList)
+	latest := []beans.Bean{{ID: "latest", Title: "Latest", Status: "todo", Type: "task"}}
+	model = updateTaskList(t, model, taskListLoadedMessage{beans: latest, request: model.loadRequest})
+	stale := []beans.Bean{{ID: "stale", Title: "Stale", Status: "todo", Type: "task"}}
+	model = updateTaskList(t, model, taskListLoadedMessage{beans: stale, request: firstRequest})
+	if !equalStringSlices(rowIDs(model.rows), []string{"latest"}) {
+		t.Errorf("model after stale refresh = %#v", model)
+	}
+}
+
+func TestTaskListRefreshErrorsRecover(t *testing.T) {
+	model := NewTaskList(testBeans(), WithTaskLoader(func(bool) ([]beans.Bean, error) {
+		return nil, nil
+	}))
+	updated, command := model.Update(taskRefreshMessage{})
+	if command == nil {
+		t.Fatal("refresh command is nil")
+	}
+	model = updated.(TaskList)
+	loadError := errors.New("disk unavailable")
+	model = updateTaskList(t, model, taskListLoadedMessage{err: loadError, request: model.loadRequest})
+	if !errors.Is(model.reloadErr, loadError) {
+		t.Errorf("refresh error = %v, want %v", model.reloadErr, loadError)
+	}
+	updated, command = model.Update(taskRefreshMessage{})
+	if command == nil {
+		t.Fatal("refresh command is nil")
+	}
+	model = updated.(TaskList)
+	model = updateTaskList(t, model, taskListLoadedMessage{beans: testBeans(), request: model.loadRequest})
+	if model.reloadErr != nil {
+		t.Errorf("refresh error after recovery = %v", model.reloadErr)
 	}
 }
 
