@@ -99,7 +99,7 @@ func lockParents(workingDirectory string) (*flock.Flock, error) {
 	if err != nil {
 		return nil, err
 	}
-	return lockBean(filepath.Join(directory, parentLockFilename))
+	return lockFile(filepath.Join(directory, parentLockFilename))
 }
 
 func lockArchive(workingDirectory string) (*flock.Flock, error) {
@@ -111,7 +111,7 @@ func lockArchive(workingDirectory string) (*flock.Flock, error) {
 	if err != nil {
 		return nil, err
 	}
-	return lockBean(filepath.Join(directory, archiveLockFilename))
+	return lockFile(filepath.Join(directory, archiveLockFilename))
 }
 
 // Claim transitions a todo bean to in-progress without allowing another claimant to win the same task.
@@ -228,6 +228,10 @@ func findBeanPath(workingDirectory, id string) (Bean, string, error) {
 }
 
 func lockBean(path string) (*flock.Flock, error) {
+	return lockFile(path + ".lock")
+}
+
+func lockFile(path string) (*flock.Flock, error) {
 	lock := flock.New(path)
 	if err := lock.Lock(); err != nil {
 		return nil, fmt.Errorf("locking %s: %w", path, err)

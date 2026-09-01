@@ -86,6 +86,24 @@ func TestClaimDoesNotOverwriteConcurrentUpdate(t *testing.T) {
 	}
 }
 
+func TestLockBeanUsesSidecarFile(t *testing.T) {
+	workingDirectory := claimTestProject(t)
+	path := filepath.Join(workingDirectory, ".beans", "project-a1--task.md")
+
+	lock, err := lockBean(path)
+	if err != nil {
+		t.Fatalf("locking bean: %v", err)
+	}
+	defer lock.Unlock()
+
+	if _, err := os.Stat(path + ".lock"); err != nil {
+		t.Fatalf("stating sidecar lock: %v", err)
+	}
+	if _, err := os.ReadFile(path); err != nil {
+		t.Errorf("reading locked bean: %v", err)
+	}
+}
+
 func claimTestProject(t *testing.T) string {
 	t.Helper()
 	workingDirectory := t.TempDir()
