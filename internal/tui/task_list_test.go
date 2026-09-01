@@ -124,7 +124,7 @@ func TestTaskListShowsMutationFeedbackInNarrowDetailView(t *testing.T) {
 	reloadError := errors.New("disk unavailable")
 	model := NewTaskList(testBeans(),
 		WithTaskClaimer(func(string) error { return nil }),
-		WithTaskLoader(func() ([]beans.Bean, error) { return nil, reloadError }),
+		WithTaskLoader(func(bool) ([]beans.Bean, error) { return nil, reloadError }),
 	)
 	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: splitPaneWidth - 1, Height: 18})
 	model = updateTaskList(t, model, key("tab"))
@@ -154,7 +154,7 @@ func TestTaskListChangesStatusAndReloadsPreservingSelection(t *testing.T) {
 			updatedStatus = status
 			return nil
 		}),
-		WithTaskLoader(func() ([]beans.Bean, error) {
+		WithTaskLoader(func(bool) ([]beans.Bean, error) {
 			loaded := testBeans()
 			loaded[1].Status = updatedStatus
 			return loaded, nil
@@ -217,7 +217,7 @@ func TestTaskListClaimsTodoTaskAndReloadsPreservingSelection(t *testing.T) {
 			claimedID = id
 			return nil
 		}),
-		WithTaskLoader(func() ([]beans.Bean, error) {
+		WithTaskLoader(func(bool) ([]beans.Bean, error) {
 			loaded := testBeans()
 			loaded[1].Status = "in-progress"
 			return loaded, nil
@@ -301,7 +301,7 @@ func TestTaskListReportsReloadFailuresAfterMutations(t *testing.T) {
 	t.Run("status update", func(t *testing.T) {
 		model := NewTaskList(testBeans(),
 			WithStatusUpdater(func(string, string) error { return nil }),
-			WithTaskLoader(func() ([]beans.Bean, error) { return nil, reloadError }),
+			WithTaskLoader(func(bool) ([]beans.Bean, error) { return nil, reloadError }),
 		)
 		model = updateTaskList(t, model, key("s"))
 		updated, command := model.Update(key("enter"))
@@ -324,7 +324,7 @@ func TestTaskListReportsReloadFailuresAfterMutations(t *testing.T) {
 	t.Run("claim", func(t *testing.T) {
 		model := NewTaskList(testBeans(),
 			WithTaskClaimer(func(string) error { return nil }),
-			WithTaskLoader(func() ([]beans.Bean, error) { return nil, reloadError }),
+			WithTaskLoader(func(bool) ([]beans.Bean, error) { return nil, reloadError }),
 		)
 		updated, command := model.Update(key("c"))
 		if command == nil {
@@ -528,7 +528,7 @@ func TestTaskListNavigatesNestedHierarchy(t *testing.T) {
 }
 
 func TestTaskListReloadPreservesSelection(t *testing.T) {
-	model := NewTaskList(testBeans(), WithTaskLoader(func() ([]beans.Bean, error) {
+	model := NewTaskList(testBeans(), WithTaskLoader(func(bool) ([]beans.Bean, error) {
 		return []beans.Bean{
 			{ID: "project-c", Title: "Third", Status: "todo", Priority: "normal", Type: "task"},
 			{ID: "project-a", Title: "First", Status: "todo", Priority: "normal", Type: "task"},
@@ -550,6 +550,82 @@ func TestTaskListReloadPreservesSelection(t *testing.T) {
 	}
 	if view := model.View().Content; !strings.Contains(view, "r reload") {
 		t.Errorf("reload help missing from view = %q", view)
+	}
+}
+
+func TestTaskListTogglesArchivedTasks(t *testing.T) {
+	active := []beans.Bean{{ID: "active", Title: "Active", Status: "todo", Type: "task"}}
+	archived := append(append([]beans.Bean{}, active...), beans.Bean{ID: "archived", Title: "Archived", Status: "completed", Type: "task"})
+	model := NewTaskList(active, WithTaskLoader(func(showArchived bool) ([]beans.Bean, error) {
+		if showArchived {
+			return archived, nil
+		}
+		return active, nil
+	}))
+
+	updated, command := model.Update(key("a"))
+	if command == nil {
+		t.Fatal("archive toggle command is nil")
+	}
+	model = updateTaskList(t, updated.(TaskList), command())
+	if !model.showArchived || !equalStringSlices(rowIDs(model.rows), []string{"active", "archived"}) {
+		t.Errorf("model after showing archived tasks = %#v", model)
+	}
+	if view := model.View().Content; !strings.Contains(view, "a hide archived") {
+		t.Errorf("archive toggle help missing from view = %q", view)
+	}
+
+	model = updateTaskList(t, model, key("down"))
+	updated, command = model.Update(key("a"))
+	if command == nil {
+		t.Fatal("archive toggle command is nil")
+	}
+	model = updateTaskList(t, updated.(TaskList), command())
+	if model.showArchived || !equalStringSlices(rowIDs(model.rows), []string{"active"}) || model.rows[model.cursor].bean.ID != "active" {
+		t.Errorf("model after hiding archived tasks = %#v", model)
+	}
+}
+
+func TestTaskListKeepsArchivedVisibilityAfterToggleLoadFailure(t *testing.T) {
+	loadError := errors.New("disk unavailable")
+	model := NewTaskList(testBeans(), WithTaskLoader(func(bool) ([]beans.Bean, error) {
+		return nil, loadError
+	}))
+	updated, command := model.Update(key("a"))
+	if command == nil {
+		t.Fatal("archive toggle command is nil")
+	}
+	model = updateTaskList(t, updated.(TaskList), command())
+	if model.showArchived || !errors.Is(model.reloadErr, loadError) {
+		t.Errorf("model after archive toggle failure = %#v", model)
+	}
+}
+
+func TestTaskListUsesTheLatestArchivedToggleRequest(t *testing.T) {
+	active := []beans.Bean{{ID: "active", Title: "Active", Status: "todo", Type: "task"}}
+	archived := append(append([]beans.Bean{}, active...), beans.Bean{ID: "archived", Title: "Archived", Status: "completed", Type: "task"})
+	model := NewTaskList(active, WithTaskLoader(func(showArchived bool) ([]beans.Bean, error) {
+		if showArchived {
+			return archived, nil
+		}
+		return active, nil
+	}))
+
+	updated, first := model.Update(key("a"))
+	if first == nil {
+		t.Fatal("first archive toggle command is nil")
+	}
+	model = updated.(TaskList)
+	updated, second := model.Update(key("a"))
+	if second == nil {
+		t.Fatal("second archive toggle command is nil")
+	}
+	model = updated.(TaskList)
+
+	model = updateTaskList(t, model, second())
+	model = updateTaskList(t, model, first())
+	if model.showArchived || model.requestedArchived || !equalStringSlices(rowIDs(model.rows), []string{"active"}) {
+		t.Errorf("model after rapid archive toggles = %#v", model)
 	}
 }
 

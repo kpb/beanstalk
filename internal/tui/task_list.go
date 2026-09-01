@@ -19,24 +19,27 @@ var statuses = []string{"draft", "todo", "in-progress", "completed", "scrapped"}
 
 // TaskList displays a read-only, keyboard-navigable list of beans.
 type TaskList struct {
-	beans        []beans.Bean
-	rows         []taskRow
-	collapsed    map[string]bool
-	children     map[string]bool
-	load         func() ([]beans.Bean, error)
-	claim        func(string) error
-	updateStatus func(string, string) error
-	claimMessage string
-	reloadErr    error
-	statusErr    error
-	showDetails  bool
-	showHelp     bool
-	showStatus   bool
-	cursor       int
-	offset       int
-	statusCursor int
-	width        int
-	height       int
+	beans             []beans.Bean
+	rows              []taskRow
+	collapsed         map[string]bool
+	children          map[string]bool
+	load              func(bool) ([]beans.Bean, error)
+	claim             func(string) error
+	updateStatus      func(string, string) error
+	claimMessage      string
+	reloadErr         error
+	statusErr         error
+	showDetails       bool
+	showArchived      bool
+	requestedArchived bool
+	showHelp          bool
+	showStatus        bool
+	cursor            int
+	offset            int
+	statusCursor      int
+	width             int
+	height            int
+	loadRequest       int
 }
 
 type taskRow struct {
@@ -45,8 +48,10 @@ type taskRow struct {
 }
 
 type taskListLoadedMessage struct {
-	beans []beans.Bean
-	err   error
+	beans        []beans.Bean
+	err          error
+	showArchived bool
+	request      int
 }
 
 type taskStatusUpdatedMessage struct {
@@ -62,7 +67,7 @@ type taskClaimedMessage struct {
 type TaskListOption func(*TaskList)
 
 // WithTaskLoader enables reloading tasks from the TUI.
-func WithTaskLoader(load func() ([]beans.Bean, error)) TaskListOption {
+func WithTaskLoader(load func(bool) ([]beans.Bean, error)) TaskListOption {
 	return func(model *TaskList) {
 		model.load = load
 	}
@@ -103,11 +108,16 @@ func (m TaskList) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = message.Height
 		m.clamp()
 	case taskListLoadedMessage:
+		if message.request != m.loadRequest {
+			return m, nil
+		}
 		if message.err != nil {
 			m.reloadErr = message.err
+			m.requestedArchived = m.showArchived
 			return m, nil
 		}
 		m.reloadErr = nil
+		m.showArchived = message.showArchived
 		m.replaceBeans(message.beans)
 	case taskStatusUpdatedMessage:
 		if message.err != nil {
@@ -117,7 +127,8 @@ func (m TaskList) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		m.showStatus = false
 		m.statusErr = nil
 		if m.load != nil {
-			return m, loadTasks(m.load)
+			command := m.requestLoad()
+			return m, command
 		}
 	case taskClaimedMessage:
 		if message.err != nil {
@@ -126,7 +137,8 @@ func (m TaskList) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.claimMessage = "Claimed " + message.id
 		if m.load != nil {
-			return m, loadTasks(m.load)
+			command := m.requestLoad()
+			return m, command
 		}
 	case tea.KeyPressMsg:
 		if m.showStatus {
@@ -159,7 +171,14 @@ func (m TaskList) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "r":
 			if m.load != nil {
-				return m, loadTasks(m.load)
+				command := m.requestLoad()
+				return m, command
+			}
+		case "a":
+			if m.load != nil {
+				m.requestedArchived = !m.requestedArchived
+				command := m.requestLoad()
+				return m, command
 			}
 		case "c":
 			if m.claim != nil && len(m.rows) > 0 {
@@ -265,7 +284,7 @@ func (m TaskList) listView() string {
 	}
 	help := "j/k navigate  h/l or left/right collapse/expand  g/G first/last"
 	if m.load != nil {
-		help += "  r reload"
+		help += "  r reload  " + m.archiveToggleLabel()
 	}
 	if len(m.rows) > 0 {
 		help += "  tab details"
@@ -376,11 +395,23 @@ func (m *TaskList) expandAncestors(id string) {
 	}
 }
 
-func loadTasks(load func() ([]beans.Bean, error)) tea.Cmd {
+func (m *TaskList) requestLoad() tea.Cmd {
+	m.loadRequest++
+	return loadTasks(m.load, m.requestedArchived, m.loadRequest)
+}
+
+func loadTasks(load func(bool) ([]beans.Bean, error), showArchived bool, request int) tea.Cmd {
 	return func() tea.Msg {
-		loaded, err := load()
-		return taskListLoadedMessage{beans: loaded, err: err}
+		loaded, err := load(showArchived)
+		return taskListLoadedMessage{beans: loaded, err: err, showArchived: showArchived, request: request}
 	}
+}
+
+func (m TaskList) archiveToggleLabel() string {
+	if m.showArchived {
+		return "a hide archived"
+	}
+	return "a show archived"
 }
 
 func updateTaskStatus(update func(string, string) error, id, status string) tea.Cmd {

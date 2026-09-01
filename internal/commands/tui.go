@@ -21,13 +21,13 @@ func newTUICommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("getting working directory: %w", err)
 			}
-			loaded, err := loadTUITasks(workingDirectory)
+			loaded, err := loadTUITasks(workingDirectory, false)
 			if err != nil {
 				return err
 			}
 			_, err = tea.NewProgram(tui.NewTaskList(loaded,
-				tui.WithTaskLoader(func() ([]beans.Bean, error) {
-					return loadTUITasks(workingDirectory)
+				tui.WithTaskLoader(func(showArchived bool) ([]beans.Bean, error) {
+					return loadTUITasks(workingDirectory, showArchived)
 				}),
 				tui.WithTaskClaimer(func(id string) error {
 					_, err := beans.Claim(workingDirectory, id, time.Now())
@@ -43,12 +43,14 @@ func newTUICommand() *cobra.Command {
 	}
 }
 
-func loadTUITasks(workingDirectory string) ([]beans.Bean, error) {
+func loadTUITasks(workingDirectory string, showArchived bool) ([]beans.Bean, error) {
 	loaded, err := beans.Load(workingDirectory)
 	if err != nil {
 		return nil, err
 	}
-	active := beans.Active(loaded)
-	beans.Sort(active)
-	return active, nil
+	if !showArchived {
+		loaded = beans.Active(loaded)
+	}
+	beans.Sort(loaded)
+	return loaded, nil
 }

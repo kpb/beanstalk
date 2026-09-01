@@ -33,6 +33,9 @@ func (m TaskList) treePane(width int) []string {
 		lines = append(lines, truncate(notice, width))
 	}
 	help := "j/k navigate  h/l tree"
+	if m.load != nil {
+		help += "  " + m.archiveToggleLabel()
+	}
 	if m.claim != nil {
 		help += "  c claim"
 	}
@@ -110,6 +113,9 @@ func (m TaskList) helpView() string {
 		"g/G or home/end  first or last task",
 		"tab or enter  show selected task on narrow terminals",
 		"r  reload tasks",
+	}
+	if m.load != nil {
+		lines = append(lines, "a  "+m.archiveToggleLabel()[2:])
 	}
 	if m.claim != nil {
 		lines = append(lines, "c  claim selected todo task")

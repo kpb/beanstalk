@@ -7,9 +7,9 @@ beanstalk tui
 ```
 
 The TUI loads active tasks from the configured Beans directory and uses the same task order as `beanstalk list`. It
-displays the task hierarchy, with parent/child relationships indented beneath their parent. Archived tasks are hidden
-until the archive toggle workflow is added. On narrow terminals, each list row includes a task's ID, status, priority,
-type, parent, and title.
+displays the task hierarchy, with parent/child relationships indented beneath their parent. Archived tasks are hidden by
+default and can be shown with `a`. On narrow terminals, each list row includes a task's ID, status, priority, type,
+parent, and title.
 
 On terminals at least 100 columns wide, the task tree and the selected task's details appear side by side. Tree rows
 show ID, status, and title; details include the remaining task metadata, body, parent, children, and milestone progress
@@ -28,6 +28,7 @@ detail views.
 | `l` or Right arrow | Expand the selected task or select its first child |
 | Tab or Enter | Toggle the detail view on narrow terminals |
 | `r` | Reload tasks |
+| `a` | Show or hide archived tasks |
 | `c` | Claim the selected `todo` task |
 | `s` | Change the selected task's status |
 | `?` | Show keyboard help |
@@ -48,9 +49,9 @@ TUI.
 
 ## Supported Workflow
 
-The TUI supports browsing, navigating the hierarchy, inspecting details, claiming todo tasks, changing task status,
-and manually reloading the task list. It does not create tasks or edit task metadata or bodies. Use the [CLI
-guide][cli-guide] for those workflow actions.
+The TUI supports browsing, navigating the hierarchy, inspecting details, showing archived tasks, claiming todo tasks,
+changing task status, and manually reloading the task list. It does not create tasks or edit task metadata or bodies.
+Use the [CLI guide][cli-guide] for those workflow actions.
 
 ## Terminal Behavior
 
