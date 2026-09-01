@@ -3,8 +3,10 @@
 Launch the task browser from an initialized Beans project:
 
 ```bash
-beanstalk tui
+beanstalk
 ```
+
+`beanstalk tui` remains available for explicit TUI launches.
 
 The TUI loads active tasks from the configured Beans directory and uses the same task order as `beanstalk list`. It
 displays the task hierarchy, with parent/child relationships indented beneath their parent. Archived tasks are hidden by

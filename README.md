@@ -101,10 +101,11 @@ beanstalk archive
 Use the TUI to browse the task hierarchy, inspect task details, claim selected todo tasks, and change task status.
 
 ```bash
-beanstalk tui
+beanstalk
 ```
 
-[Read the TUI guide][tui-guide] for navigation keys, task mutations, displayed details, and terminal behavior.
+`beanstalk tui` remains available for explicit TUI launches. [Read the TUI guide][tui-guide] for navigation keys, task
+mutations, displayed details, and terminal behavior.
 
 ## Development
 

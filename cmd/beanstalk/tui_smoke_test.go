@@ -30,7 +30,7 @@ func TestTUIExecutableSmoke(t *testing.T) {
 		t.Fatalf("building beanstalk: %v\n%s", err, output)
 	}
 
-	command := exec.Command(binary, "tui")
+	command := exec.Command(binary)
 	command.Dir = project
 	command.Env = append(os.Environ(), "TERM=xterm-256color")
 	terminal, err := pty.Start(command)

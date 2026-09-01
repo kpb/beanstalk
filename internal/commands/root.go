@@ -12,6 +12,8 @@ func NewRootCommand() *cobra.Command {
 		Short:         "A terminal-native tracker for Beans-format tasks",
 		SilenceUsage:  true,
 		SilenceErrors: true,
+		Args:          cobra.NoArgs,
+		RunE:          runTUI,
 	}
 
 	command.AddCommand(newInitCommand())
