@@ -48,6 +48,7 @@ func loadTUITasks(workingDirectory string) ([]beans.Bean, error) {
 	if err != nil {
 		return nil, err
 	}
-	beans.Sort(loaded)
-	return loaded, nil
+	active := beans.Active(loaded)
+	beans.Sort(active)
+	return active, nil
 }

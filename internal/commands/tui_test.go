@@ -12,6 +12,7 @@ func TestLoadTUITasksSortsAndReportsProjectErrors(t *testing.T) {
 	workingDirectory := initializedProject(t)
 	writeBean(t, workingDirectory, ".beans/project-b--second.md", beans.Bean{ID: "project-b", Title: "Second", Status: "todo", Type: "task"})
 	writeBean(t, workingDirectory, ".beans/project-a--first.md", beans.Bean{ID: "project-a", Title: "First", Status: "in-progress", Type: "task"})
+	writeBean(t, workingDirectory, ".beans/archive/project-c--archived.md", beans.Bean{ID: "project-c", Title: "Archived", Status: "completed", Type: "task"})
 
 	loaded, err := loadTUITasks(workingDirectory)
 	if err != nil {

@@ -27,7 +27,7 @@ func TestListCommand(t *testing.T) {
 	if err := command.Execute(); err != nil {
 		t.Fatalf("executing list command: %v", err)
 	}
-	if got, want := output.String(), "ID                  S  T  TITLE\nproject-b2          >  B  Fix parser\nproject-a1          o  T  Add login\nproject-c3          x  T  Old task\n"; got != want {
+	if got, want := output.String(), "ID                  S  T  TITLE\nproject-b2          >  B  Fix parser\nproject-a1          o  T  Add login\n"; got != want {
 		t.Errorf("list output = %q, want %q", got, want)
 	}
 }
@@ -91,6 +91,24 @@ func TestListCommandRendersHierarchyWithFilteredParentContext(t *testing.T) {
 	}
 	if got, want := output.String(), "ID                  S  T  TITLE\nproject-parent      x  E  Parent\nproject-child-a     o  T  |- First child\nproject-grandchild  o  T  |  `- Grandchild\nproject-child-b     o  T  `- Second child\n"; got != want {
 		t.Errorf("hierarchical list output = %q, want %q", got, want)
+	}
+}
+
+func TestListCommandKeepsActiveChildrenOfArchivedParents(t *testing.T) {
+	workingDirectory := initializedProject(t)
+	writeBean(t, workingDirectory, ".beans/archive/project-parent--parent.md", beans.Bean{ID: "project-parent", Title: "Parent", Status: "completed", Type: "epic"})
+	writeBean(t, workingDirectory, ".beans/project-child--child.md", beans.Bean{ID: "project-child", Title: "Child", Status: "todo", Type: "task", Parent: "project-parent"})
+	t.Chdir(workingDirectory)
+
+	command := NewRootCommand()
+	output := new(bytes.Buffer)
+	command.SetOut(output)
+	command.SetArgs([]string{"list"})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("executing list command: %v", err)
+	}
+	if got, want := output.String(), "ID                  S  T  TITLE\nproject-child       o  T  Child\n"; got != want {
+		t.Errorf("list output = %q, want %q", got, want)
 	}
 }
 

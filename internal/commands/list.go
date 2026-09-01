@@ -40,15 +40,16 @@ func newListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			beans.Sort(loaded)
-			filtered := filterBeans(loaded, options)
+			active := beans.Active(loaded)
+			beans.Sort(active)
+			filtered := filterBeans(active, options)
 			if options.json {
 				for index := range filtered {
 					filtered[index].Body = ""
 				}
 				return json.NewEncoder(command.OutOrStdout()).Encode(filtered)
 			}
-			rows, err := listHierarchy(loaded, filtered)
+			rows, err := listHierarchy(active, filtered)
 			if err != nil {
 				return err
 			}
@@ -142,16 +143,17 @@ func listHierarchy(loaded, matched []beans.Bean) ([]listRow, error) {
 
 	included := make(map[string]bool, len(matched))
 	for _, bean := range matched {
-		for id, visited := bean.ID, map[string]bool{}; id != ""; id = byID[id].Parent {
+		for id, visited := bean.ID, map[string]bool{}; id != ""; {
 			if visited[id] {
 				return nil, fmt.Errorf("%w: %s", beans.ErrParentCycle, id)
 			}
 			visited[id] = true
 			parent, found := byID[id]
 			if !found {
-				return nil, fmt.Errorf("parent bean not found: %s", id)
+				break
 			}
 			included[parent.ID] = true
+			id = parent.Parent
 		}
 	}
 
@@ -161,7 +163,7 @@ func listHierarchy(loaded, matched []beans.Bean) ([]listRow, error) {
 		if !included[bean.ID] {
 			continue
 		}
-		if bean.Parent == "" {
+		if bean.Parent == "" || !included[bean.Parent] {
 			roots = append(roots, bean)
 			continue
 		}
@@ -172,7 +174,7 @@ func listHierarchy(loaded, matched []beans.Bean) ([]listRow, error) {
 	var visit func(beans.Bean, string, bool)
 	visit = func(bean beans.Bean, prefix string, last bool) {
 		title := bean.Title
-		if bean.Parent != "" {
+		if bean.Parent != "" && included[bean.Parent] {
 			connector := "|- "
 			if last {
 				connector = "`- "
@@ -182,7 +184,7 @@ func listHierarchy(loaded, matched []beans.Bean) ([]listRow, error) {
 		rows = append(rows, listRow{bean: bean, title: title})
 
 		childPrefix := prefix
-		if bean.Parent != "" {
+		if bean.Parent != "" && included[bean.Parent] {
 			if last {
 				childPrefix += "   "
 			} else {

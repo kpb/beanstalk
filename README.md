@@ -91,6 +91,7 @@ scripts, and coding agents.
 ```bash
 beanstalk init
 beanstalk list --status todo
+beanstalk archive
 ```
 
 [Read the CLI guide][cli-guide] for commands, task hierarchies, milestone progress, JSON output, and agent workflow.

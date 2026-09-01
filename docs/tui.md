@@ -6,9 +6,10 @@ Launch the task browser from an initialized Beans project:
 beanstalk tui
 ```
 
-The TUI loads the configured Beans directory and uses the same task order as `beanstalk list`. It displays the task
-hierarchy, with parent/child relationships indented beneath their parent. On narrow terminals, each list row includes
-a task's ID, status, priority, type, parent, and title.
+The TUI loads active tasks from the configured Beans directory and uses the same task order as `beanstalk list`. It
+displays the task hierarchy, with parent/child relationships indented beneath their parent. Archived tasks are hidden
+until the archive toggle workflow is added. On narrow terminals, each list row includes a task's ID, status, priority,
+type, parent, and title.
 
 On terminals at least 100 columns wide, the task tree and the selected task's details appear side by side. Tree rows
 show ID, status, and title; details include the remaining task metadata, body, parent, children, and milestone progress

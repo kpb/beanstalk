@@ -45,6 +45,8 @@ Without `--json`, list output is a sorted task tree with these columns:
 Filtered text output includes a matching task's ancestors to retain its tree context. `--json` preserves the existing
 task schema and applies the requested filters without adding ancestor rows.
 
+Archived tasks are excluded from `list`. Use `show <id>` to inspect an archived task by ID.
+
 Show one task, including its Markdown body:
 
 ```bash
@@ -64,6 +66,16 @@ beanstalk update project-a1b2 --parent ""
 ```
 
 Parents must reference an existing task and cannot form cycles. Passing an empty `--parent` removes the parent link.
+
+Archive completed and scrapped tasks with an explicit bulk operation:
+
+```bash
+beanstalk archive
+beanstalk archive --json
+```
+
+This moves resolved task files to `.beans/archive/` without changing their metadata or contents. Status updates never
+archive tasks automatically.
 
 ## Imported Metadata Validation
 
@@ -113,4 +125,4 @@ beanstalk update project-a1b2 --status completed --json
 ## Supported Scope
 
 Beanstalk intentionally does not implement ready filtering, search, multi-ID show, body edits, relationships beyond a
-single parent link, archive, etags, GraphQL, web/server features, agent plugins, or worktree automation.
+single parent link, etags, GraphQL, web/server features, agent plugins, or worktree automation.

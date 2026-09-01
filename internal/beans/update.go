@@ -18,7 +18,10 @@ var (
 	ErrParentCycle      = errors.New("parent link would create a cycle")
 )
 
-const parentLockFilename = ".beanstalk-parent.lock"
+const (
+	parentLockFilename  = ".beanstalk-parent.lock"
+	archiveLockFilename = ".beanstalk-archive.lock"
+)
 
 type UpdateFields struct {
 	Status *string
@@ -58,6 +61,11 @@ func UpdateStatus(workingDirectory, id, status string, updatedAt time.Time) (Bea
 
 // Update changes supported bean metadata while preserving other front matter and body.
 func Update(workingDirectory, id string, fields UpdateFields, updatedAt time.Time) (Bean, error) {
+	archiveLock, err := lockArchive(workingDirectory)
+	if err != nil {
+		return Bean{}, err
+	}
+	defer archiveLock.Unlock()
 	if fields.Parent != nil {
 		lock, err := lockParents(workingDirectory)
 		if err != nil {
@@ -94,8 +102,25 @@ func lockParents(workingDirectory string) (*flock.Flock, error) {
 	return lockBean(filepath.Join(directory, parentLockFilename))
 }
 
+func lockArchive(workingDirectory string) (*flock.Flock, error) {
+	config, err := LoadConfig(workingDirectory)
+	if err != nil {
+		return nil, err
+	}
+	directory, err := Directory(workingDirectory, config)
+	if err != nil {
+		return nil, err
+	}
+	return lockBean(filepath.Join(directory, archiveLockFilename))
+}
+
 // Claim transitions a todo bean to in-progress without allowing another claimant to win the same task.
 func Claim(workingDirectory, id string, updatedAt time.Time) (Bean, error) {
+	archiveLock, err := lockArchive(workingDirectory)
+	if err != nil {
+		return Bean{}, err
+	}
+	defer archiveLock.Unlock()
 	_, path, err := findBeanPath(workingDirectory, id)
 	if err != nil {
 		return Bean{}, err
@@ -114,6 +139,76 @@ func Claim(workingDirectory, id string, updatedAt time.Time) (Bean, error) {
 		return Bean{}, fmt.Errorf("%w: %s is %s", ErrBeanNotClaimable, id, bean.Status)
 	}
 	return updateStatusLocked(workingDirectory, id, "in-progress", updatedAt)
+}
+
+// Archive moves completed and scrapped beans into the configured archive directory.
+func Archive(workingDirectory string) ([]Bean, error) {
+	config, err := LoadConfig(workingDirectory)
+	if err != nil {
+		return nil, err
+	}
+	directory, err := Directory(workingDirectory, config)
+	if err != nil {
+		return nil, err
+	}
+	archiveDirectory := filepath.Join(directory, "archive")
+	lock, err := lockArchive(workingDirectory)
+	if err != nil {
+		return nil, err
+	}
+	defer lock.Unlock()
+	loaded, err := Load(workingDirectory)
+	if err != nil {
+		return nil, err
+	}
+
+	var archived []Bean
+	for _, bean := range loaded {
+		if IsArchived(bean) || (bean.Status != "completed" && bean.Status != "scrapped") {
+			continue
+		}
+		archivedBean, err := archiveBean(workingDirectory, directory, archiveDirectory, bean.ID)
+		if err != nil {
+			return nil, err
+		}
+		if archivedBean.ID != "" {
+			archived = append(archived, archivedBean)
+		}
+	}
+	return archived, nil
+}
+
+func archiveBean(workingDirectory, directory, archiveDirectory, id string) (Bean, error) {
+	bean, path, err := findBeanPath(workingDirectory, id)
+	if err != nil {
+		return Bean{}, err
+	}
+	if IsArchived(bean) || (bean.Status != "completed" && bean.Status != "scrapped") {
+		return Bean{}, nil
+	}
+	if err := os.MkdirAll(archiveDirectory, 0o755); err != nil {
+		return Bean{}, fmt.Errorf("creating archive directory: %w", err)
+	}
+	if err := syncDirectory(directory); err != nil {
+		return Bean{}, fmt.Errorf("syncing beans directory: %w", err)
+	}
+	destination := filepath.Join(archiveDirectory, filepath.Base(path))
+	if _, err := os.Stat(destination); err == nil {
+		return Bean{}, fmt.Errorf("archiving %s: destination already exists", bean.ID)
+	} else if !os.IsNotExist(err) {
+		return Bean{}, fmt.Errorf("checking archive destination: %w", err)
+	}
+	if err := os.Rename(path, destination); err != nil {
+		return Bean{}, fmt.Errorf("archiving %s: %w", bean.ID, err)
+	}
+	if err := syncDirectory(filepath.Dir(path)); err != nil {
+		return Bean{}, fmt.Errorf("syncing bean directory: %w", err)
+	}
+	if err := syncDirectory(archiveDirectory); err != nil {
+		return Bean{}, fmt.Errorf("syncing archive directory: %w", err)
+	}
+	bean.Path = filepath.ToSlash(filepath.Join("archive", filepath.Base(path)))
+	return bean, nil
 }
 
 func findBeanPath(workingDirectory, id string) (Bean, string, error) {

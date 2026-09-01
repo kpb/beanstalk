@@ -97,6 +97,22 @@ func Load(workingDirectory string) ([]Bean, error) {
 	return loaded, nil
 }
 
+// IsArchived reports whether a bean is stored in the archive directory.
+func IsArchived(bean Bean) bool {
+	return bean.Path == "archive" || strings.HasPrefix(bean.Path, "archive/")
+}
+
+// Active returns the beans outside the archive directory.
+func Active(loaded []Bean) []Bean {
+	active := make([]Bean, 0, len(loaded))
+	for _, bean := range loaded {
+		if !IsArchived(bean) {
+			active = append(active, bean)
+		}
+	}
+	return active
+}
+
 func load(workingDirectory string) ([]Bean, error) {
 	config, err := LoadConfig(workingDirectory)
 	if err != nil {
