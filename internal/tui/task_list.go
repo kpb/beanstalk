@@ -47,6 +47,7 @@ type TaskList struct {
 type taskRow struct {
 	bean  beans.Bean
 	depth int
+	last  []bool
 }
 
 type taskListLoadedMessage struct {
@@ -271,34 +272,25 @@ func (m TaskList) render() string {
 
 func (m TaskList) listView() string {
 	var output strings.Builder
-	fmt.Fprintf(&output, "Beanstalk tasks (%d)\n\n", len(m.beans))
+	title := fmt.Sprintf("Beanstalk tasks (%d)", len(m.beans))
+	fmt.Fprintf(&output, "%s\n\n", heading("+-- "+title+" --+"))
 	if len(m.beans) == 0 {
 		output.WriteString("No beans found.\n\nq quit\n")
 		return output.String()
 	}
 
-	output.WriteString("  ID                 STATUS       PRIORITY  TYPE      PARENT        TITLE\n")
+	output.WriteString(muted("  ID                 | STATUS       | PRIORITY | TYPE      | PARENT        | TITLE") + "\n")
 	end := min(len(m.rows), m.offset+m.visibleRows())
 	for index := m.offset; index < end; index++ {
 		row := m.rows[index]
-		bean := row.bean
-		parent := bean.Parent
-		if parent == "" {
-			parent = "-"
-		}
-		marker := " "
-		if index == m.cursor {
-			marker = ">"
-		}
-		line := fmt.Sprintf("%s %-18s %-12s %-9s %-9s %-13s %s", marker, bean.ID, bean.Status, bean.Priority, bean.Type, parent, treeTitle(row, m.children, m.collapsed))
-		output.WriteString(truncate(line, m.width))
+		output.WriteString(taskRowView(row, m.children, m.collapsed, index == m.cursor, m.width))
 		output.WriteByte('\n')
 	}
 	if m.reloadErr != nil {
-		fmt.Fprintf(&output, "\nReload failed: %v\n", m.reloadErr)
+		fmt.Fprintf(&output, "\n%s\n", styled(fmt.Sprintf("Reload failed: %v", m.reloadErr), ansiRed))
 	}
 	if m.claimMessage != "" {
-		fmt.Fprintf(&output, "\n%s\n", m.claimMessage)
+		fmt.Fprintf(&output, "\n%s\n", feedbackMessage(m.claimMessage))
 	}
 	help := "j/k navigate  h/l or left/right collapse/expand  g/G first/last"
 	if m.load != nil {
@@ -313,7 +305,7 @@ func (m TaskList) listView() string {
 			help += "  s status"
 		}
 	}
-	output.WriteString("\n" + help + "  ? help  q quit\n")
+	output.WriteString("\n" + muted(help+"  ? help  q quit") + "\n")
 	return output.String()
 }
 
@@ -354,22 +346,30 @@ func (m TaskList) updateStatusPicker(message tea.KeyPressMsg) (tea.Model, tea.Cm
 }
 
 func (m TaskList) compactView() string {
-	lines := []string{fmt.Sprintf("Beanstalk tasks (%d)", len(m.beans))}
+	title := fmt.Sprintf("Beanstalk tasks (%d)", len(m.beans))
+	lines := []string{heading("+-- " + title + " --+")}
 	if len(m.beans) == 0 {
 		lines = append(lines, "No beans found.")
 	} else if m.claimMessage != "" && m.height == 3 {
-		lines = append(lines, truncate(m.claimMessage, m.width))
+		lines = append(lines, truncate(feedbackMessage(m.claimMessage), m.width))
 	} else {
 		row := m.rows[m.cursor]
-		lines = append(lines, truncate(fmt.Sprintf("> %s  %s  %s", row.bean.ID, row.bean.Status, treeTitle(row, m.children, m.collapsed)), m.width))
+		lines = append(lines, taskRowView(row, m.children, m.collapsed, true, m.width))
 	}
 	if m.height >= 3 {
 		if m.claimMessage != "" && m.height != 3 {
-			lines = append(lines, truncate(m.claimMessage, m.width))
+			lines = append(lines, truncate(feedbackMessage(m.claimMessage), m.width))
 		}
-		lines = append(lines, "q quit")
+		lines = append(lines, muted("q quit"))
 	}
 	return strings.Join(lines[:min(len(lines), m.height)], "\n") + "\n"
+}
+
+func feedbackMessage(message string) string {
+	if strings.HasPrefix(message, "Claimed ") {
+		return styled(message, ansiGreen)
+	}
+	return styled(message, ansiRed)
 }
 
 func (m *TaskList) rebuildRows() {
@@ -516,15 +516,44 @@ func (m *TaskList) selectFirstChild() {
 }
 
 func treeTitle(row taskRow, children, collapsed map[string]bool) string {
-	marker := " "
+	marker := ""
 	if children[row.bean.ID] {
 		if collapsed[row.bean.ID] {
 			marker = "+"
-		} else {
-			marker = "-"
 		}
 	}
-	return strings.Repeat("  ", row.depth) + marker + " " + row.bean.Title
+	if row.depth == 0 {
+		if marker != "" {
+			return marker + " " + row.bean.Title
+		}
+		return row.bean.Title
+	}
+	if len(row.last) != row.depth {
+		return strings.Repeat("  ", row.depth) + markerPrefix(marker) + row.bean.Title
+	}
+
+	var output strings.Builder
+	for index := 0; index < len(row.last)-1; index++ {
+		if row.last[index] {
+			output.WriteString("   ")
+		} else {
+			output.WriteString("│  ")
+		}
+	}
+	if row.last[len(row.last)-1] {
+		output.WriteString("└─")
+	} else {
+		output.WriteString("├─")
+	}
+	output.WriteString(markerPrefix(marker) + row.bean.Title)
+	return output.String()
+}
+
+func markerPrefix(marker string) string {
+	if marker == "" {
+		return ""
+	}
+	return marker + " "
 }
 
 func flattenTaskTree(loaded []beans.Bean, collapsed map[string]bool) ([]taskRow, map[string]bool) {
@@ -555,36 +584,90 @@ func flattenTaskTree(loaded []beans.Bean, collapsed map[string]bool) ([]taskRow,
 	}
 	rows := make([]taskRow, 0, len(loaded))
 	visited := make([]bool, len(loaded))
-	var visit func(int, int, bool)
-	visit = func(index, depth int, visible bool) {
+	var visit func(int, int, bool, []bool)
+	visit = func(index, depth int, visible bool, last []bool) {
 		if visited[index] {
 			return
 		}
 		visited[index] = true
 		bean := loaded[index]
 		if visible {
-			rows = append(rows, taskRow{bean: bean, depth: depth})
+			rows = append(rows, taskRow{bean: bean, depth: depth, last: append([]bool(nil), last...)})
 		}
-		for _, child := range children[bean.ID] {
-			visit(child, depth+1, visible && !collapsed[bean.ID])
+		for childIndex, child := range children[bean.ID] {
+			visit(child, depth+1, visible && !collapsed[bean.ID], append(last, childIndex == len(children[bean.ID])-1))
 		}
 	}
 	for _, root := range roots {
-		visit(root, 0, true)
+		visit(root, 0, true, nil)
 	}
 	for index := range loaded {
-		visit(index, 0, true)
+		visit(index, 0, true, nil)
 	}
 	return rows, hasChildren
 }
 
 func truncate(value string, width int) string {
-	runes := []rune(value)
-	if width <= 0 || len(runes) <= width {
+	if width <= 0 || displayWidth(value) <= width {
 		return value
 	}
 	if width <= 3 {
-		return string(runes[:width])
+		return truncateANSI(value, width)
 	}
-	return string(runes[:width-3]) + "..."
+	return truncateANSI(value, width-3) + "..."
+}
+
+func displayWidth(value string) int {
+	width := 0
+	for index := 0; index < len(value); {
+		if end, found := ansiSequenceEnd(value, index); found {
+			index = end
+			continue
+		}
+		_, size := runeAt(value, index)
+		width++
+		index += size
+	}
+	return width
+}
+
+func truncateANSI(value string, width int) string {
+	var output strings.Builder
+	used := 0
+	styled := false
+	for index := 0; index < len(value) && used < width; {
+		if end, found := ansiSequenceEnd(value, index); found {
+			output.WriteString(value[index:end])
+			styled = value[index:end] != ansiReset
+			index = end
+			continue
+		}
+		rune, size := runeAt(value, index)
+		output.WriteRune(rune)
+		used++
+		index += size
+	}
+	if styled {
+		output.WriteString(ansiReset)
+	}
+	return output.String()
+}
+
+func ansiSequenceEnd(value string, start int) (int, bool) {
+	if start+2 > len(value) || value[start] != '\x1b' || value[start+1] != '[' {
+		return 0, false
+	}
+	for index := start + 2; index < len(value); index++ {
+		if value[index] == 'm' {
+			return index + 1, true
+		}
+	}
+	return 0, false
+}
+
+func runeAt(value string, index int) (rune, int) {
+	for _, rune := range value[index:] {
+		return rune, len(string(rune))
+	}
+	return 0, 0
 }

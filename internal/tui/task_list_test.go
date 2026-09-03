@@ -99,7 +99,7 @@ func TestTaskListRendersSplitDetailPaneAndHelp(t *testing.T) {
 	)
 	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: splitPaneWidth, Height: 18})
 	view := model.View().Content
-	for _, want := range []string{"Tasks (3)", "Task details", "Selected task body", " | "} {
+	for _, want := range []string{"Tasks (3)", "project-a", "Selected task body", "╭", "╰", "│", "j/k navigate", "q quit"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("split view does not contain %q:\n%s", want, view)
 		}
@@ -482,7 +482,7 @@ func TestTaskListCollapseUpdatesRowsAndClampsSelection(t *testing.T) {
 func TestTaskListRendersAndNavigatesHierarchy(t *testing.T) {
 	model := NewTaskList(testBeans())
 	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: 120, Height: 10})
-	if view := model.View().Content; !strings.Contains(view, "- First") || !strings.Contains(view, "    Second") {
+	if view := model.View().Content; !strings.Contains(view, "First") || !strings.Contains(view, "└─Second") {
 		t.Errorf("hierarchy view = %q", view)
 	}
 
@@ -536,6 +536,37 @@ func TestTaskListNavigatesNestedHierarchy(t *testing.T) {
 	model = updateTaskList(t, model, key("right"))
 	if got, want := rowIDs(model.rows), []string{"root", "child", "grandchild", "sibling"}; !equalStringSlices(got, want) {
 		t.Errorf("visible row IDs after expanding child = %v, want %v", got, want)
+	}
+}
+
+func TestTreeTitleDrawsBranchesAndContinuationGuides(t *testing.T) {
+	loaded := []beans.Bean{
+		{ID: "root", Title: "Root"},
+		{ID: "first", Title: "First", Parent: "root"},
+		{ID: "grandchild", Title: "Grandchild", Parent: "first"},
+		{ID: "last", Title: "Last", Parent: "root"},
+	}
+	rows, children := flattenTaskTree(loaded, nil)
+	got := make([]string, len(rows))
+	for index, row := range rows {
+		got[index] = treeTitle(row, children, nil)
+	}
+	want := []string{"Root", "├─First", "│  └─Grandchild", "└─Last"}
+	if !equalStringSlices(got, want) {
+		t.Errorf("tree titles = %q, want %q", got, want)
+	}
+}
+
+func TestSplitTaskRowsLeadWithTheHierarchicalTitle(t *testing.T) {
+	row := taskRow{bean: beans.Bean{ID: "project-a", Title: "First", Status: "todo", Type: "task"}}
+	view := splitTaskRowView(row, nil, nil, true, 40)
+	for _, want := range []string{"> First", "T ", statusLabel("todo")} {
+		if !strings.Contains(view, want) {
+			t.Errorf("split task row does not contain %q: %q", want, view)
+		}
+	}
+	if strings.Contains(view, row.bean.ID) {
+		t.Errorf("split task row includes bean ID: %q", view)
 	}
 }
 

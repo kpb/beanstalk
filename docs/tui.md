@@ -16,10 +16,13 @@ parent, and title.
 The TUI checks for task-file changes automatically, normally showing them within one second while preserving the
 selected task when it remains available.
 
-On terminals at least 100 columns wide, the task tree and the selected task's details appear side by side. Tree rows
-show ID, status, and title; details include the remaining task metadata, body, parent, children, and milestone progress
-when the selected task belongs to a milestone. On narrower terminals, press Tab or Enter to switch between the list and
-detail views.
+On terminals at least 100 columns wide, the task tree and the selected task's details appear side by side in separately
+bordered panes. The tree leads with titles and branch connectors that show parent and sibling relationships; compact type
+and status metadata appears at the right of each row. Details include the remaining task metadata, body, parent,
+children, and milestone progress when the selected task belongs to a milestone. On narrower terminals, press Tab or
+Enter to switch between the list and detail views.
+
+The wide layout keeps keyboard shortcuts in a shared footer below both panes, leaving the panes for task content.
 
 ## Navigation
 
