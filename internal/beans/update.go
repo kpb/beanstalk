@@ -19,8 +19,9 @@ var (
 )
 
 const (
-	parentLockFilename  = ".beanstalk-parent.lock"
-	archiveLockFilename = ".beanstalk-archive.lock"
+	parentLockFilename   = ".beanstalk-parent.lock"
+	archiveLockFilename  = ".beanstalk-archive.lock"
+	creationLockFilename = ".beanstalk-creation.lock"
 )
 
 type UpdateFields struct {
@@ -112,6 +113,19 @@ func lockArchive(workingDirectory string) (*flock.Flock, error) {
 		return nil, err
 	}
 	return lockFile(filepath.Join(directory, archiveLockFilename))
+}
+
+// LockCreation serializes task creation to prevent duplicate IDs.
+func LockCreation(workingDirectory string) (*flock.Flock, error) {
+	config, err := LoadConfig(workingDirectory)
+	if err != nil {
+		return nil, err
+	}
+	directory, err := Directory(workingDirectory, config)
+	if err != nil {
+		return nil, err
+	}
+	return lockFile(filepath.Join(directory, creationLockFilename))
 }
 
 // Claim transitions a todo bean to in-progress without allowing another claimant to win the same task.

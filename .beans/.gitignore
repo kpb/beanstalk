@@ -2,4 +2,5 @@
 .conversations/
 *.md.lock
 .beanstalk-archive.lock
+.beanstalk-creation.lock
 .beanstalk-parent.lock

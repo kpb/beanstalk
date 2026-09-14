@@ -6,7 +6,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/kpb/beanstalk/internal/beans"
 	"gopkg.in/yaml.v3"
@@ -31,8 +34,8 @@ func TestCreateCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading beans directory: %v", err)
 	}
-	if len(entries) != 2 {
-		t.Fatalf("beans entries = %d, want 2", len(entries))
+	if len(entries) != 3 {
+		t.Fatalf("beans entries = %d, want 3", len(entries))
 	}
 	var beanName string
 	for _, entry := range entries {
@@ -124,6 +127,70 @@ func TestCreateCommandRejectsInvalidStatus(t *testing.T) {
 	command.SetArgs([]string{"create", "Invalid", "--status", "unknown"})
 	if err := command.Execute(); err == nil || !strings.Contains(err.Error(), "invalid status") {
 		t.Errorf("create error = %v", err)
+	}
+}
+
+func TestCreateBeanAvoidsDuplicateIDsDuringConcurrentCreates(t *testing.T) {
+	workingDirectory := initializedProject(t)
+	var calls atomic.Int32
+	originalNewBeanID := newBeanID
+	newBeanID = func(prefix string, length int) (string, error) {
+		if calls.Add(1) <= 2 {
+			return "project-a1", nil
+		}
+		return "project-b2", nil
+	}
+	t.Cleanup(func() {
+		newBeanID = originalNewBeanID
+	})
+
+	var group sync.WaitGroup
+	errors := make(chan error, 2)
+	for _, title := range []string{"First", "Second"} {
+		group.Go(func() {
+			_, err := createBean(workingDirectory, title, createOptions{})
+			errors <- err
+		})
+	}
+	group.Wait()
+	close(errors)
+	for err := range errors {
+		if err != nil {
+			t.Fatalf("creating bean: %v", err)
+		}
+	}
+
+	loaded, err := beans.Load(workingDirectory)
+	if err != nil {
+		t.Fatalf("loading beans: %v", err)
+	}
+	if len(loaded) != 2 || loaded[0].ID == loaded[1].ID {
+		t.Errorf("loaded beans = %#v", loaded)
+	}
+}
+
+func TestCreateBeanWaitsForCreationLock(t *testing.T) {
+	workingDirectory := initializedProject(t)
+	lock, err := beans.LockCreation(workingDirectory)
+	if err != nil {
+		t.Fatalf("locking creation: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := createBean(workingDirectory, "Blocked", createOptions{})
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		t.Fatalf("create completed while lock was held: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+	if err := lock.Unlock(); err != nil {
+		t.Fatalf("unlocking creation: %v", err)
+	}
+	if err := <-done; err != nil {
+		t.Fatalf("creating bean: %v", err)
 	}
 }
 

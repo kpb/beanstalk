@@ -18,6 +18,8 @@ import (
 const defaultBeanStatus = "todo"
 const defaultBeanType = "task"
 
+var newBeanID = generateBeanID
+
 var (
 	beanStatuses   = map[string]bool{"todo": true, "draft": true, "in-progress": true, "completed": true, "scrapped": true}
 	beanTypes      = map[string]bool{"milestone": true, "epic": true, "bug": true, "feature": true, "task": true}
@@ -111,6 +113,11 @@ func createBean(workingDirectory, title string, options createOptions) (beans.Be
 	if err != nil {
 		return beans.Bean{}, err
 	}
+	lock, err := beans.LockCreation(workingDirectory)
+	if err != nil {
+		return beans.Bean{}, err
+	}
+	defer lock.Unlock()
 
 	idLength := config.Beans.IDLength
 	if idLength == 0 {
@@ -123,6 +130,11 @@ func createBean(workingDirectory, title string, options createOptions) (beans.Be
 	for range 10 {
 		id, err := newBeanID(config.Beans.Prefix, idLength)
 		if err != nil {
+			return beans.Bean{}, err
+		}
+		if _, err := beans.Find(workingDirectory, id); err == nil {
+			continue
+		} else if !errors.Is(err, beans.ErrBeanNotFound) {
 			return beans.Bean{}, err
 		}
 		slug := beanSlug(title)
@@ -158,7 +170,7 @@ func createBean(workingDirectory, title string, options createOptions) (beans.Be
 	return beans.Bean{}, errors.New("could not generate a unique bean ID")
 }
 
-func newBeanID(prefix string, length int) (string, error) {
+func generateBeanID(prefix string, length int) (string, error) {
 	const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
 	bytes := make([]byte, length)
 	if _, err := rand.Read(bytes); err != nil {
