@@ -77,6 +77,17 @@ beanstalk archive --json
 This moves resolved task files to `.beans/archive/` without changing their metadata or contents. Status updates never
 archive tasks automatically.
 
+## Shell Completion
+
+Generate a completion script for Bash, Zsh, Fish, or PowerShell:
+
+```bash
+source <(beanstalk completion bash)
+beanstalk completion zsh > "${fpath[1]}/_beanstalk"
+beanstalk completion fish > ~/.config/fish/completions/beanstalk.fish
+beanstalk completion powershell | Out-String | Invoke-Expression
+```
+
 ## Imported Metadata Validation
 
 Beanstalk preserves unknown front-matter keys so compatible Beans files retain metadata it does not use. It validates the

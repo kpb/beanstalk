@@ -92,9 +92,11 @@ scripts, and coding agents.
 beanstalk init
 beanstalk list --status todo
 beanstalk archive
+source <(beanstalk completion bash)
 ```
 
-[Read the CLI guide][cli-guide] for commands, task hierarchies, milestone progress, JSON output, and agent workflow.
+[Read the CLI guide][cli-guide] for commands, shell completion, task hierarchies, milestone progress, JSON output, and
+agent workflow.
 
 ### TUI
 
