@@ -79,6 +79,54 @@ func TestLoadSupportsCustomPathAndClosingDelimiterAtEOF(t *testing.T) {
 	}
 }
 
+func TestLoadSupportsCRLFFrontMatter(t *testing.T) {
+	workingDirectory := t.TempDir()
+	if err := os.Mkdir(filepath.Join(workingDirectory, ".beans"), 0o755); err != nil {
+		t.Fatalf("creating beans directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workingDirectory, ".beans.yml"), []byte("beans:\n  path: .beans\n"), 0o644); err != nil {
+		t.Fatalf("writing config: %v", err)
+	}
+	contents := "---\r\ntitle: Windows bean\r\nstatus: todo\r\n---\r\nBody\r\n"
+	if err := os.WriteFile(filepath.Join(workingDirectory, ".beans", "project-a1--windows.md"), []byte(contents), 0o644); err != nil {
+		t.Fatalf("writing bean: %v", err)
+	}
+
+	loaded, err := Load(workingDirectory)
+	if err != nil {
+		t.Fatalf("loading beans: %v", err)
+	}
+	if len(loaded) != 1 || loaded[0].Title != "Windows bean" || loaded[0].Body != "Body" {
+		t.Errorf("loaded beans = %#v", loaded)
+	}
+}
+
+func TestUpdatePreservesCRLFBody(t *testing.T) {
+	workingDirectory := t.TempDir()
+	if err := os.Mkdir(filepath.Join(workingDirectory, ".beans"), 0o755); err != nil {
+		t.Fatalf("creating beans directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workingDirectory, ".beans.yml"), []byte("beans:\n  path: .beans\n"), 0o644); err != nil {
+		t.Fatalf("writing config: %v", err)
+	}
+	path := filepath.Join(workingDirectory, ".beans", "project-a1--windows.md")
+	contents := "---\r\ntitle: Windows bean\r\nstatus: todo\r\n---\r\nFirst line\r\nSecond line\r\n"
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatalf("writing bean: %v", err)
+	}
+
+	if _, err := UpdateStatus(workingDirectory, "project-a1", "in-progress", time.Now()); err != nil {
+		t.Fatalf("updating bean: %v", err)
+	}
+	updated, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading updated bean: %v", err)
+	}
+	if !strings.HasSuffix(string(updated), "First line\r\nSecond line\r\n") {
+		t.Errorf("updated body = %q", updated)
+	}
+}
+
 func TestLoadRequiresInitializedProject(t *testing.T) {
 	_, err := Load(t.TempDir())
 	if !errors.Is(err, ErrNotInitialized) {

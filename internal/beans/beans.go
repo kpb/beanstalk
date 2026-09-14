@@ -195,7 +195,7 @@ func parse(path, directory string) (Bean, error) {
 		return Bean{}, fmt.Errorf("getting relative path for %s: %w", path, err)
 	}
 	bean.Path = filepath.ToSlash(relativePath)
-	bean.Body = strings.TrimSuffix(body, "\n")
+	bean.Body = strings.TrimSuffix(strings.TrimSuffix(body, "\n"), "\r")
 	if bean.Type == "" {
 		bean.Type = "task"
 	}
@@ -219,16 +219,24 @@ func parse(path, directory string) (Bean, error) {
 }
 
 func splitFrontMatter(contents string) (string, string, error) {
-	if !strings.HasPrefix(contents, "---\n") {
+	openingDelimiter := "---\n"
+	lineEnding := "\n"
+	if strings.HasPrefix(contents, "---\r\n") {
+		openingDelimiter = "---\r\n"
+		lineEnding = "\r\n"
+	}
+	if !strings.HasPrefix(contents, openingDelimiter) {
 		return "", "", errors.New("missing opening front matter delimiter")
 	}
-	remaining := contents[len("---\n"):]
-	index := strings.Index(remaining, "\n---\n")
+	remaining := contents[len(openingDelimiter):]
+	closingDelimiter := lineEnding + "---" + lineEnding
+	index := strings.Index(remaining, closingDelimiter)
 	if index >= 0 {
-		return remaining[:index], remaining[index+len("\n---\n"):], nil
+		return strings.ReplaceAll(remaining[:index], "\r\n", "\n"), remaining[index+len(closingDelimiter):], nil
 	}
-	if strings.HasSuffix(remaining, "\n---") {
-		return strings.TrimSuffix(remaining, "\n---"), "", nil
+	closingDelimiter = lineEnding + "---"
+	if strings.HasSuffix(remaining, closingDelimiter) {
+		return strings.ReplaceAll(strings.TrimSuffix(remaining, closingDelimiter), "\r\n", "\n"), "", nil
 	}
 	return "", "", errors.New("missing closing front matter delimiter")
 }
