@@ -47,6 +47,19 @@ curl -fsSL https://raw.githubusercontent.com/kpb/beanstalk/main/install.sh | VER
 The installer requires a POSIX shell, `awk`, `curl`, `install`, `mkdir`, `mktemp`, `rm`, `tar`, `uname`, and either
 `sha256sum` or `shasum`.
 
+### Verify Release Provenance
+
+Release archives from v0.4.0 onward include GitHub build attestations. After downloading an archive, optionally verify
+that it was built by Beanstalk's release workflow with the GitHub CLI:
+
+```bash
+gh attestation verify beanstalk_0.4.0_darwin_arm64.tar.gz \
+  -R kpb/beanstalk \
+  --signer-workflow kpb/beanstalk/.github/workflows/release.yml
+```
+
+This provenance check is optional and requires `gh`. The installer always verifies the archive's SHA-256 checksum.
+
 On Windows, download the ZIP archive for your platform from the [latest release][latest-release], extract it, and place
 `beanstalk.exe` on your `PATH`.
 
