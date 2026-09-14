@@ -41,11 +41,13 @@ Set `INSTALL_DIR` to a writable directory to install elsewhere, or `VERSION` to 
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/kpb/beanstalk/main/install.sh | INSTALL_DIR=/usr/local/bin sh
-curl -fsSL https://raw.githubusercontent.com/kpb/beanstalk/main/install.sh | VERSION=v0.1.0 sh
+curl -fsSL https://raw.githubusercontent.com/kpb/beanstalk/main/install.sh | VERSION=v0.3.0 sh
 ```
 
-The installer requires `curl`, `tar`, and either `sha256sum` or `shasum`. On Windows, download the ZIP archive for your
-platform from the [latest release][latest-release], extract it, and place
+The installer requires a POSIX shell, `awk`, `curl`, `install`, `mkdir`, `mktemp`, `rm`, `tar`, `uname`, and either
+`sha256sum` or `shasum`.
+
+On Windows, download the ZIP archive for your platform from the [latest release][latest-release], extract it, and place
 `beanstalk.exe` on your `PATH`.
 
 ```bash
