@@ -172,7 +172,8 @@ func (m TaskList) helpView() string {
 
 	modalWidth := min(72, max(4, m.width-4))
 	modalLines := m.paddedHelpLines()
-	modalHeight := min(len(modalLines)+2, max(3, m.height-4))
+	modalHeight := min(len(modalLines)+2, max(3, m.height-2))
+	modalLines = fitHelpLines(modalLines, modalHeight-2)
 	modal := styleHelpModal(borderedPane("", modalLines, modalWidth, modalHeight))
 	top := max(0, (m.height-len(modal))/2)
 	left := max(0, (m.width-modalWidth)/2)
@@ -195,28 +196,56 @@ func (m TaskList) helpBackgroundView() string {
 }
 
 func (m TaskList) helpLines() []string {
-	lines := []string{
-		styled("Keyboard Shortcuts", ansiBold, ansiMagenta),
-		"",
-		shortcut("j/k or up/down", "move selection (scroll details when open)"),
-		shortcut("h/l or left/right", "collapse, expand, parent, child"),
-		shortcut("g/G or home/end", "first or last task"),
-		shortcut("tab or enter", "show selected task full screen"),
-		shortcut("esc", "return from task details"),
-		shortcut("home/end", "top or bottom of details when open"),
-		shortcut("r", "reload tasks"),
+	hints := []helpHint{
+		{"j/k or up/down", "move selection (scroll details when open)"},
+		{"h/l or left/right", "collapse, expand, parent, child"},
+		{"g/G or home/end", "first or last task"},
+		{"tab or enter", "show selected task full screen"},
+		{"esc", "return from task details"},
+		{"home/end", "top or bottom of details when open"},
+		{"r", "reload tasks"},
 	}
 	if m.load != nil {
-		lines = append(lines, shortcut("a", m.archiveToggleLabel()[2:]))
+		hints = append(hints, helpHint{"a", m.archiveToggleLabel()[2:]})
 	}
 	if m.claim != nil {
-		lines = append(lines, shortcut("c", " claim selected todo task"))
+		hints = append(hints, helpHint{"c", "claim selected todo task"})
 	}
 	if m.updateStatus != nil {
-		lines = append(lines, shortcut("s", " change selected task status"), "    "+shortcut("j/k", "select")+"  "+shortcut("enter", "save")+"  "+shortcut("esc", "cancel"))
+		hints = append(hints, helpHint{"s", "change selected task status"})
 	}
-	lines = append(lines, shortcut("? or esc", "close help"), shortcut("q or ctrl+c", "quit"))
+	keyWidth := helpHintWidth(hints)
+	modalWidth := min(72, max(4, m.width-4)) - 2
+	if m.width > 0 && modalWidth < keyWidth+25 {
+		keyWidth = 0
+	}
+
+	lines := []string{styled("Keyboard Shortcuts", ansiBold, ansiMagenta), ""}
+	for _, hint := range hints {
+		lines = append(lines, formatHelpHint(hint, keyWidth))
+	}
+	if m.updateStatus != nil {
+		lines = append(lines, "    "+shortcut("j/k", "select")+"  "+shortcut("enter", "save")+"  "+shortcut("esc", "cancel"))
+	}
+	lines = append(lines, formatHelpHint(helpHint{"q or ctrl+c", "quit"}, keyWidth), "", formatHelpHint(helpHint{"? or esc", "close help"}, keyWidth))
 	return lines
+}
+
+type helpHint struct {
+	key         string
+	description string
+}
+
+func helpHintWidth(hints []helpHint) int {
+	width := 0
+	for _, hint := range hints {
+		width = max(width, displayWidth(hint.key))
+	}
+	return width
+}
+
+func formatHelpHint(hint helpHint, keyWidth int) string {
+	return shortcut(hint.key, strings.Repeat(" ", max(0, keyWidth-displayWidth(hint.key)))+hint.description)
 }
 
 func (m TaskList) paddedHelpLines() []string {
@@ -225,6 +254,18 @@ func (m TaskList) paddedHelpLines() []string {
 		lines[index] = "  " + lines[index]
 	}
 	return append(lines, "")
+}
+
+func fitHelpLines(lines []string, height int) []string {
+	if len(lines) <= height {
+		return lines
+	}
+	footer := lines[len(lines)-4 : len(lines)-1]
+	if height <= len(footer) {
+		return footer[len(footer)-height:]
+	}
+	lines = append([]string(nil), lines[:height-len(footer)]...)
+	return append(lines, footer...)
 }
 
 func styleHelpModal(lines []string) []string {

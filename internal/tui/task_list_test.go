@@ -108,7 +108,7 @@ func TestTaskListRendersSplitDetailPaneAndHelp(t *testing.T) {
 	}
 
 	model = updateTaskList(t, model, key("?"))
-	for _, want := range []string{"Keyboard Shortcuts", "tab or enter", "c  claim selected todo task", "s  change selected task status", "enter save"} {
+	for _, want := range []string{"Keyboard Shortcuts", "tab or enter", "claim selected todo task", "change selected task status", "q or ctrl+c", "? or esc"} {
 		if view := unstyled(model.View().Content); !strings.Contains(view, want) {
 			t.Errorf("help view does not contain %q:\n%s", want, view)
 		}
@@ -146,6 +146,45 @@ func TestTaskListCentersBorderedHelpOverDimmedBackground(t *testing.T) {
 	}
 }
 
+func TestTaskListSeparatesCloseHelpInstruction(t *testing.T) {
+	lines := NewTaskList(testBeans()).helpLines()
+	if got := plainText(lines[len(lines)-1]); !strings.HasPrefix(got, "? or esc") || !strings.HasSuffix(got, "close help") {
+		t.Errorf("final help line = %q, want close help instruction", got)
+	}
+	if got := lines[len(lines)-2]; got != "" {
+		t.Errorf("line before close help = %q, want blank", got)
+	}
+}
+
+func TestTaskListAlignsHelpDescriptionsWhenSpaceAllows(t *testing.T) {
+	model := NewTaskList(testBeans(), WithTaskClaimer(func(string) error { return nil }))
+	model.width = splitPaneWidth
+	for _, description := range []string{"move selection", "collapse, expand", "claim selected", "close help"} {
+		for _, line := range model.helpLines() {
+			if position := strings.Index(plainText(line), description); position >= 0 {
+				if got, want := position, 18; got != want {
+					t.Errorf("description %q starts at %d, want %d: %q", description, got, want, plainText(line))
+				}
+				break
+			}
+		}
+	}
+}
+
+func TestTaskListKeepsHelpDescriptionsCompactOnNarrowTerminals(t *testing.T) {
+	model := NewTaskList(testBeans())
+	model.width = 40
+	for _, line := range model.helpLines() {
+		if line := plainText(line); strings.Contains(line, "move selection") {
+			if got, want := strings.Index(line, "move selection"), len("j/k or up/down "); got != want {
+				t.Errorf("narrow description starts at %d, want %d: %q", got, want, line)
+			}
+			return
+		}
+	}
+	t.Error("move selection help line not found")
+}
+
 func TestTaskListBoundsHelpModalOnNarrowTerminals(t *testing.T) {
 	model := NewTaskList(testBeans())
 	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: 40, Height: 10})
@@ -158,6 +197,9 @@ func TestTaskListBoundsHelpModalOnNarrowTerminals(t *testing.T) {
 		if got := displayWidth(line); got > 40 {
 			t.Errorf("help view line width = %d, want at most 40: %q", got, line)
 		}
+	}
+	if !strings.Contains(strings.Join(lines, "\n"), "? or esc close help") {
+		t.Errorf("narrow help view does not retain close instruction:\n%s", model.View().Content)
 	}
 }
 
