@@ -108,10 +108,66 @@ func TestTaskListRendersSplitDetailPaneAndHelp(t *testing.T) {
 	}
 
 	model = updateTaskList(t, model, key("?"))
-	for _, want := range []string{"Keyboard help", "tab or enter", "c  claim selected todo task", "s  change selected task status", "enter save"} {
+	for _, want := range []string{"Keyboard Shortcuts", "tab or enter", "c  claim selected todo task", "s  change selected task status", "enter save"} {
 		if view := unstyled(model.View().Content); !strings.Contains(view, want) {
 			t.Errorf("help view does not contain %q:\n%s", want, view)
 		}
+	}
+}
+
+func TestTaskListCentersBorderedHelpOverDimmedBackground(t *testing.T) {
+	model := NewTaskList(testBeans())
+	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: splitPaneWidth, Height: 18})
+	model = updateTaskList(t, model, key("?"))
+	view := model.View().Content
+	if !strings.Contains(view, ansiDim+ansiGray+"╭ Tasks (3)") {
+		t.Errorf("help background is not dimmed:\n%s", view)
+	}
+	if !strings.Contains(view, ansiMagenta+"╭") {
+		t.Errorf("help modal top border is not styled:\n%s", view)
+	}
+
+	lines := strings.Split(strings.TrimSuffix(unstyled(view), "\n"), "\n")
+	if got, want := len(lines), 18; got != want {
+		t.Fatalf("help view lines = %d, want %d:\n%s", got, want, view)
+	}
+	if !strings.Contains(strings.Join(lines, "\n"), "│  Keyboard Shortcuts") {
+		t.Errorf("help modal title is not padded:\n%s", view)
+	}
+	for _, line := range lines {
+		if got := displayWidth(line); got > splitPaneWidth {
+			t.Errorf("help view line width = %d, want at most %d: %q", got, splitPaneWidth, line)
+		}
+		if start := strings.Index(line, "Keyboard Shortcuts"); start >= 0 {
+			if got, want := displayWidth(line[:start]), 17; got != want {
+				t.Errorf("help modal left offset = %d, want %d: %q", got, want, line)
+			}
+		}
+	}
+}
+
+func TestTaskListBoundsHelpModalOnNarrowTerminals(t *testing.T) {
+	model := NewTaskList(testBeans())
+	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: 40, Height: 10})
+	model = updateTaskList(t, model, key("?"))
+	lines := strings.Split(strings.TrimSuffix(unstyled(model.View().Content), "\n"), "\n")
+	if got, want := len(lines), 10; got != want {
+		t.Fatalf("help view lines = %d, want %d", got, want)
+	}
+	for _, line := range lines {
+		if got := displayWidth(line); got > 40 {
+			t.Errorf("help view line width = %d, want at most 40: %q", got, line)
+		}
+	}
+}
+
+func TestTaskListClosesHelpWithEscape(t *testing.T) {
+	model := NewTaskList(testBeans())
+	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: splitPaneWidth, Height: 18})
+	model = updateTaskList(t, model, key("?"))
+	model = updateTaskList(t, model, key("esc"))
+	if view := unstyled(model.View().Content); strings.Contains(view, "Keyboard Shortcuts") || !strings.Contains(view, "Tasks (3)") {
+		t.Errorf("view after closing help with escape = %q", view)
 	}
 }
 
@@ -191,7 +247,7 @@ func TestTaskListFullScreenDetailRetainsHelpAndStatusInteractions(t *testing.T) 
 	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: splitPaneWidth, Height: 18})
 	model = updateTaskList(t, model, key("enter"))
 	model = updateTaskList(t, model, key("?"))
-	if view := model.View().Content; !strings.Contains(view, "Keyboard help") {
+	if view := unstyled(model.View().Content); !strings.Contains(view, "Keyboard Shortcuts") {
 		t.Errorf("help view from full-screen details = %q", view)
 	}
 	model = updateTaskList(t, model, key("?"))
@@ -946,19 +1002,7 @@ func key(value string) tea.KeyPressMsg {
 	return tea.KeyPressMsg(tea.Key{Text: value, Code: rune(value[0])})
 }
 
-func unstyled(value string) string {
-	var output strings.Builder
-	for index := 0; index < len(value); {
-		if end, found := ansiSequenceEnd(value, index); found {
-			index = end
-			continue
-		}
-		rune, size := runeAt(value, index)
-		output.WriteRune(rune)
-		index += size
-	}
-	return output.String()
-}
+func unstyled(value string) string { return plainText(value) }
 
 func testBeans() []beans.Bean {
 	return []beans.Bean{

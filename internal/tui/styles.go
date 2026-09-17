@@ -15,6 +15,7 @@ const (
 	ansiBlue    = "\x1b[34m"
 	ansiMagenta = "\x1b[35m"
 	ansiCyan    = "\x1b[36m"
+	ansiGray    = "\x1b[90m"
 )
 
 func styled(value string, attributes ...string) string {
@@ -29,8 +30,26 @@ func muted(value string) string {
 	return styled(value, ansiDim)
 }
 
+func dimmedBackground(value string) string {
+	return styled(value, ansiDim, ansiGray)
+}
+
 func shortcut(key, description string) string {
 	return styled(key, ansiCyan) + muted(" "+description)
+}
+
+func plainText(value string) string {
+	var output strings.Builder
+	for index := 0; index < len(value); {
+		if end, found := ansiSequenceEnd(value, index); found {
+			index = end
+			continue
+		}
+		rune, size := runeAt(value, index)
+		output.WriteRune(rune)
+		index += size
+	}
+	return output.String()
 }
 
 func statusStyle(status string) string {

@@ -27,6 +27,12 @@ func TestShortcutStylesKeyAndDescriptionSeparately(t *testing.T) {
 	}
 }
 
+func TestDimmedBackgroundUsesGrayInAdditionToDim(t *testing.T) {
+	if got, want := dimmedBackground("background"), ansiDim+ansiGray+"background"+ansiReset; got != want {
+		t.Errorf("dimmedBackground() = %q, want %q", got, want)
+	}
+}
+
 func TestTaskRowViewKeepsStyledRowsWithinTerminalWidth(t *testing.T) {
 	row := taskRow{bean: beans.Bean{ID: "project-a", Title: "A task title", Status: "in-progress", Priority: "normal", Type: "task"}}
 	view := taskRowView(row, nil, nil, true, 50)
@@ -64,5 +70,12 @@ func TestBorderedPaneHasConsistentDimensions(t *testing.T) {
 		if got, want := displayWidth(line), 20; got != want {
 			t.Errorf("pane width = %d, want %d: %q", got, want, line)
 		}
+	}
+}
+
+func TestBorderedPaneDrawsContinuousBorderWithoutTitle(t *testing.T) {
+	pane := borderedPane("", nil, 20, 3)
+	if got, want := pane[0], "╭"+strings.Repeat("─", 18)+"╮"; got != want {
+		t.Errorf("untitled top border = %q, want %q", got, want)
 	}
 }

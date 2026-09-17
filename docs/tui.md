@@ -25,6 +25,8 @@ When details exceed the screen height, use the arrow keys or `j`/`k` to scroll; 
 end of the detail content.
 
 The wide layout keeps keyboard shortcuts in a shared footer below both panes, leaving the panes for task content.
+Press `?` to open keyboard help in a centered, bordered overlay. The task list remains visible behind the dimmed overlay;
+press `?` or Esc to close it.
 
 ## Navigation
 

@@ -130,7 +130,9 @@ func borderedPane(title string, content []string, width, height int) []string {
 	height = max(3, height)
 	innerWidth := width - 2
 	innerHeight := height - 2
-	title = truncate(" "+title+" ", innerWidth)
+	if title != "" {
+		title = truncate(" "+title+" ", innerWidth)
+	}
 	lines := make([]string, 0, height)
 	lines = append(lines, "╭"+title+strings.Repeat("─", max(0, innerWidth-displayWidth(title)))+"╮")
 	for index := 0; index < innerHeight; index++ {
@@ -157,8 +159,44 @@ func fitPaneLines(lines []string, width, height int) []string {
 }
 
 func (m TaskList) helpView() string {
+	if m.width <= 0 || m.height <= fixedLines {
+		return styleDetail(boundDetail(m.helpLines(), m.width, m.height))
+	}
+
+	background := m.helpBackgroundView()
+	lines := strings.Split(strings.TrimSuffix(background, "\n"), "\n")
+	for len(lines) < m.height {
+		lines = append(lines, "")
+	}
+	lines = lines[:m.height]
+
+	modalWidth := min(72, max(4, m.width-4))
+	modalLines := m.paddedHelpLines()
+	modalHeight := min(len(modalLines)+2, max(3, m.height-4))
+	modal := styleHelpModal(borderedPane("", modalLines, modalWidth, modalHeight))
+	top := max(0, (m.height-len(modal))/2)
+	left := max(0, (m.width-modalWidth)/2)
+	for index := range modal {
+		lines[top+index] = overlayHelpModalLine(lines[top+index], modal[index], left, m.width)
+	}
+	for index := range lines {
+		if index < top || index >= top+len(modal) {
+			lines[index] = dimmedBackground(truncate(plainText(lines[index]), m.width))
+		}
+	}
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func (m TaskList) helpBackgroundView() string {
+	if m.usesSplitPane() {
+		return m.splitView()
+	}
+	return m.listView()
+}
+
+func (m TaskList) helpLines() []string {
 	lines := []string{
-		"Keyboard help",
+		styled("Keyboard Shortcuts", ansiBold, ansiMagenta),
 		"",
 		shortcut("j/k or up/down", "move selection (scroll details when open)"),
 		shortcut("h/l or left/right", "collapse, expand, parent, child"),
@@ -177,8 +215,54 @@ func (m TaskList) helpView() string {
 	if m.updateStatus != nil {
 		lines = append(lines, shortcut("s", " change selected task status"), "    "+shortcut("j/k", "select")+"  "+shortcut("enter", "save")+"  "+shortcut("esc", "cancel"))
 	}
-	lines = append(lines, shortcut("?", "close help"), shortcut("q or ctrl+c", "quit"))
-	return styleDetail(boundDetail(lines, m.width, m.height))
+	lines = append(lines, shortcut("? or esc", "close help"), shortcut("q or ctrl+c", "quit"))
+	return lines
+}
+
+func (m TaskList) paddedHelpLines() []string {
+	lines := append([]string(nil), m.helpLines()...)
+	for index := range lines {
+		lines[index] = "  " + lines[index]
+	}
+	return append(lines, "")
+}
+
+func styleHelpModal(lines []string) []string {
+	for index, line := range lines {
+		if index == 0 || index == len(lines)-1 {
+			lines[index] = styled(line, ansiMagenta)
+			continue
+		}
+		lines[index] = styled("│", ansiMagenta) + strings.TrimSuffix(strings.TrimPrefix(line, "│"), "│") + styled("│", ansiMagenta)
+	}
+	return lines
+}
+
+func overlayHelpModalLine(background, modal string, left, width int) string {
+	background = plainText(background)
+	if displayWidth(background) < width {
+		background += strings.Repeat(" ", width-displayWidth(background))
+	}
+	modalWidth := displayWidth(modal)
+	return dimmedBackground(displaySlice(background, 0, left)) + modal + dimmedBackground(displaySlice(background, left+modalWidth, width))
+}
+
+func displaySlice(value string, start, end int) string {
+	if end <= start {
+		return ""
+	}
+	var output strings.Builder
+	position := 0
+	for _, rune := range value {
+		if position >= end {
+			break
+		}
+		if position >= start {
+			output.WriteRune(rune)
+		}
+		position++
+	}
+	return output.String()
 }
 
 func (m TaskList) statusPickerView() string {

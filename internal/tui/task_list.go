@@ -175,8 +175,12 @@ func (m TaskList) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				m.detailOffset = 0
 			}
 		case "esc":
-			m.showDetails = false
-			m.detailOffset = 0
+			if m.showHelp {
+				m.showHelp = false
+			} else {
+				m.showDetails = false
+				m.detailOffset = 0
+			}
 		case "up", "k":
 			if m.showDetails {
 				m.scrollDetails(-1)
