@@ -143,6 +143,25 @@ func TestTaskListFullScreenDetailClosesWithEscape(t *testing.T) {
 	}
 }
 
+func TestTaskListFullScreenDetailShowsAvailableActions(t *testing.T) {
+	model := NewTaskList(testBeans(),
+		WithTaskLoader(func(bool) ([]beans.Bean, error) { return nil, nil }),
+		WithTaskClaimer(func(string) error { return nil }),
+		WithStatusUpdater(func(string, string) error { return nil }),
+	)
+	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: 160, Height: 18})
+	model = updateTaskList(t, model, key("enter"))
+	view := model.View().Content
+	for _, want := range []string{"s status", "c claim", "r reload"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("full-screen detail footer does not contain %q:\n%s", want, view)
+		}
+	}
+	if strings.Contains(view, "a show archived") {
+		t.Errorf("full-screen detail footer shows archive toggle:\n%s", view)
+	}
+}
+
 func TestTaskListFullScreenDetailScrollsWithoutChangingSelection(t *testing.T) {
 	loaded := testBeans()
 	loaded[0].Body = strings.Join([]string{

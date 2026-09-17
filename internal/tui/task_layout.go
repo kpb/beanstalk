@@ -62,7 +62,17 @@ func (m TaskList) detailView() string {
 		start = min(m.detailOffset, max(0, len(styledLines)-viewportHeight))
 		end = min(len(styledLines), start+viewportHeight)
 	}
-	footer := "j/k or up/down scroll  home/end top/bottom  tab/enter/esc back  ? help  q quit"
+	footer := "j/k scroll  home/end top/bottom  tab/enter/esc back"
+	if m.updateStatus != nil {
+		footer += "  s status"
+	}
+	if m.claim != nil {
+		footer += "  c claim"
+	}
+	if m.load != nil {
+		footer += "  r reload"
+	}
+	footer += "  ? help  q quit"
 	if viewportHeight > 0 && len(styledLines) > viewportHeight {
 		footer += fmt.Sprintf("  %d-%d/%d", start+1, end, len(styledLines))
 	}
