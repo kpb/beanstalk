@@ -38,6 +38,7 @@ type TaskList struct {
 	showStatus        bool
 	cursor            int
 	offset            int
+	detailOffset      int
 	statusCursor      int
 	width             int
 	height            int
@@ -169,17 +170,37 @@ func (m TaskList) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case "?":
 			m.showHelp = !m.showHelp
 		case "tab", "enter":
-			if !m.usesSplitPane() && len(m.rows) > 0 {
+			if len(m.rows) > 0 {
 				m.showDetails = !m.showDetails
+				m.detailOffset = 0
 			}
+		case "esc":
+			m.showDetails = false
+			m.detailOffset = 0
 		case "up", "k":
-			m.cursor--
+			if m.showDetails {
+				m.scrollDetails(-1)
+			} else {
+				m.cursor--
+			}
 		case "down", "j":
-			m.cursor++
+			if m.showDetails {
+				m.scrollDetails(1)
+			} else {
+				m.cursor++
+			}
 		case "home", "g":
-			m.cursor = 0
+			if m.showDetails {
+				m.detailOffset = 0
+			} else {
+				m.cursor = 0
+			}
 		case "end", "G":
-			m.cursor = len(m.rows) - 1
+			if m.showDetails {
+				m.scrollDetailsToEnd()
+			} else {
+				m.cursor = len(m.rows) - 1
+			}
 		case "left", "h":
 			if !m.collapseCurrent() {
 				m.selectParent()
@@ -239,6 +260,7 @@ func (m *TaskList) clamp() {
 		m.offset = m.cursor - rows + 1
 	}
 	m.offset = max(0, min(m.offset, max(0, len(m.rows)-rows)))
+	m.clampDetailOffset()
 }
 
 func (m TaskList) visibleRows() int {
@@ -251,6 +273,36 @@ func (m TaskList) visibleRows() int {
 	return max(1, m.height-fixedLines)
 }
 
+func (m TaskList) detailViewportHeight() int {
+	if m.height <= 0 {
+		return 0
+	}
+	return max(0, m.height-1)
+}
+
+func (m *TaskList) clampDetailOffset() {
+	if !m.showDetails || len(m.rows) == 0 {
+		m.detailOffset = 0
+		return
+	}
+	viewportHeight := m.detailViewportHeight()
+	if viewportHeight == 0 {
+		m.detailOffset = 0
+		return
+	}
+	m.detailOffset = max(0, min(m.detailOffset, max(0, len(m.detailLines())-viewportHeight)))
+}
+
+func (m *TaskList) scrollDetails(delta int) {
+	m.detailOffset += delta
+	m.clampDetailOffset()
+}
+
+func (m *TaskList) scrollDetailsToEnd() {
+	m.detailOffset = len(m.detailLines())
+	m.clampDetailOffset()
+}
+
 func (m TaskList) render() string {
 	if m.showStatus {
 		return m.statusPickerView()
@@ -261,11 +313,11 @@ func (m TaskList) render() string {
 	if m.showHelp {
 		return m.helpView()
 	}
-	if m.usesSplitPane() {
-		return m.splitView()
-	}
 	if m.showDetails && len(m.rows) > 0 {
 		return m.detailView()
+	}
+	if m.usesSplitPane() {
+		return m.splitView()
 	}
 	return m.listView()
 }

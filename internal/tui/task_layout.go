@@ -54,14 +54,30 @@ func (m TaskList) splitShortcutHelp() string {
 }
 
 func (m TaskList) detailView() string {
+	lines := m.detailLines()
+	styledLines := strings.Split(strings.TrimSuffix(styleDetail(strings.Join(lines, "\n")+"\n"), "\n"), "\n")
+	viewportHeight := m.detailViewportHeight()
+	start, end := 0, len(styledLines)
+	if viewportHeight > 0 {
+		start = min(m.detailOffset, max(0, len(styledLines)-viewportHeight))
+		end = min(len(styledLines), start+viewportHeight)
+	}
+	footer := "j/k or up/down scroll  home/end top/bottom  tab/enter/esc back  ? help  q quit"
+	if viewportHeight > 0 && len(styledLines) > viewportHeight {
+		footer += fmt.Sprintf("  %d-%d/%d", start+1, end, len(styledLines))
+	}
+	return strings.Join(styledLines[start:end], "\n") + "\n" + muted(truncate(footer, m.width)) + "\n"
+}
+
+func (m TaskList) detailLines() []string {
 	notices := m.notices()
 	if len(notices) == 0 {
-		return styleDetail(renderTaskDetail(m.beans, m.rows[m.cursor].bean, m.width, m.height))
+		return strings.Split(strings.TrimSuffix(renderTaskDetail(m.beans, m.rows[m.cursor].bean, m.width, 0), "\n"), "\n")
 	}
 	details := strings.TrimSuffix(renderTaskDetail(m.beans, m.rows[m.cursor].bean, m.width, 0), "\n")
 	lines := append(notices, "")
 	lines = append(lines, strings.Split(details, "\n")...)
-	return styleDetail(boundDetail(lines, m.width, m.height))
+	return lines
 }
 
 func (m TaskList) notices() []string {
@@ -134,10 +150,12 @@ func (m TaskList) helpView() string {
 	lines := []string{
 		"Keyboard help",
 		"",
-		"j/k or up/down  move selection",
+		"j/k or up/down  move selection (scroll details when open)",
 		"h/l or left/right  collapse, expand, parent, child",
 		"g/G or home/end  first or last task",
-		"tab or enter  show selected task on narrow terminals",
+		"tab or enter  show selected task full screen",
+		"esc  return from task details",
+		"home/end  top or bottom of details when open",
 		"r  reload tasks",
 	}
 	if m.load != nil {

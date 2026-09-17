@@ -19,8 +19,10 @@ selected task when it remains available.
 On terminals at least 100 columns wide, the task tree and the selected task's details appear side by side in separately
 bordered panes. The tree leads with titles and branch connectors that show parent and sibling relationships; compact type
 and status metadata appears at the right of each row. Details include the remaining task metadata, body, parent,
-children, and milestone progress when the selected task belongs to a milestone. On narrower terminals, press Tab or
-Enter to switch between the list and detail views.
+children, and milestone progress when the selected task belongs to a milestone. Press Tab or Enter to open the selected
+task in a full-screen detail view at any terminal width; press Tab, Enter, or Esc to return to the task list.
+When details exceed the screen height, use the arrow keys or `j`/`k` to scroll; Home and End jump to the beginning and
+end of the detail content.
 
 The wide layout keeps keyboard shortcuts in a shared footer below both panes, leaving the panes for task content.
 
@@ -28,13 +30,14 @@ The wide layout keeps keyboard shortcuts in a shared footer below both panes, le
 
 | Key | Action |
 | --- | --- |
-| Up arrow or `k` | Select the previous task |
-| Down arrow or `j` | Select the next task |
-| Home or `g` | Select the first task |
-| End or `G` | Select the last task |
+| Up arrow or `k` | Select the previous task, or scroll details up |
+| Down arrow or `j` | Select the next task, or scroll details down |
+| Home or `g` | Select the first task, or jump to the top of details |
+| End or `G` | Select the last task, or jump to the bottom of details |
 | `h` or Left arrow | Collapse the selected task or select its parent |
 | `l` or Right arrow | Expand the selected task or select its first child |
-| Tab or Enter | Toggle the detail view on narrow terminals |
+| Tab or Enter | Toggle the selected task's full-screen detail view |
+| Esc | Return from the full-screen detail view to the task list |
 | `r` | Reload tasks |
 | `a` | Show or hide archived tasks |
 | `c` | Claim the selected `todo` task |

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -113,22 +114,83 @@ func TestTaskListRendersSplitDetailPaneAndHelp(t *testing.T) {
 	}
 }
 
-func TestTaskListTogglesDetailOnNarrowTerminal(t *testing.T) {
+func TestTaskListTogglesFullScreenDetailAtAnyWidth(t *testing.T) {
 	loaded := testBeans()
 	loaded[0].Body = "Selected task body"
-	model := NewTaskList(loaded)
-	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: splitPaneWidth - 1, Height: 18})
-	if view := model.View().Content; strings.Contains(view, "Task details") {
-		t.Errorf("narrow list view unexpectedly shows detail pane:\n%s", view)
+	for _, width := range []int{splitPaneWidth - 1, splitPaneWidth} {
+		t.Run(fmt.Sprintf("width %d", width), func(t *testing.T) {
+			model := NewTaskList(loaded)
+			model = updateTaskList(t, model, tea.WindowSizeMsg{Width: width, Height: 18})
+			model = updateTaskList(t, model, key("tab"))
+			if view := model.View().Content; !strings.Contains(view, "Task details") || !strings.Contains(view, "Selected task body") || !strings.Contains(view, "tab/enter/esc back") {
+				t.Errorf("full-screen detail view = %q", view)
+			}
+			model = updateTaskList(t, model, key("enter"))
+			if view := model.View().Content; strings.Contains(view, "Task details") {
+				t.Errorf("list view after return = %q", view)
+			}
+		})
 	}
+}
 
-	model = updateTaskList(t, model, key("tab"))
-	if view := model.View().Content; !strings.Contains(view, "Task details") || !strings.Contains(view, "Selected task body") {
-		t.Errorf("narrow detail view = %q", view)
-	}
+func TestTaskListFullScreenDetailClosesWithEscape(t *testing.T) {
+	model := NewTaskList(testBeans())
+	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: splitPaneWidth, Height: 18})
 	model = updateTaskList(t, model, key("enter"))
-	if view := model.View().Content; strings.Contains(view, "Task details") {
-		t.Errorf("narrow list view after return = %q", view)
+	model = updateTaskList(t, model, key("esc"))
+	if view := model.View().Content; strings.Contains(view, "Task details") || !strings.Contains(view, "Tasks (3)") {
+		t.Errorf("split view after escape = %q", view)
+	}
+}
+
+func TestTaskListFullScreenDetailScrollsWithoutChangingSelection(t *testing.T) {
+	loaded := testBeans()
+	loaded[0].Body = strings.Join([]string{
+		"Body line 1", "Body line 2", "Body line 3", "Body line 4", "Body line 5", "Body line 6", "Body line 7", "Body line 8", "Body line 9", "Body line 10",
+	}, "\n")
+	model := NewTaskList(loaded)
+	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: 80, Height: 14})
+	model = updateTaskList(t, model, key("enter"))
+	model = updateTaskList(t, model, key("down"))
+	model = updateTaskList(t, model, key("j"))
+	if model.rows[model.cursor].bean.ID != "project-a" || model.detailOffset != 2 {
+		t.Errorf("model after detail scrolling = %#v", model)
+	}
+	model = updateTaskList(t, model, key("end"))
+	if view := model.View().Content; !strings.Contains(view, "Body line 10") || model.rows[model.cursor].bean.ID != "project-a" {
+		t.Errorf("detail view at end = %q", view)
+	}
+	model = updateTaskList(t, model, key("home"))
+	if model.detailOffset != 0 {
+		t.Errorf("detail offset after home = %d, want 0", model.detailOffset)
+	}
+}
+
+func TestTaskListFullScreenDetailRetainsHelpAndStatusInteractions(t *testing.T) {
+	model := NewTaskList(testBeans(), WithStatusUpdater(func(string, string) error { return nil }))
+	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: splitPaneWidth, Height: 18})
+	model = updateTaskList(t, model, key("enter"))
+	model = updateTaskList(t, model, key("?"))
+	if view := model.View().Content; !strings.Contains(view, "Keyboard help") {
+		t.Errorf("help view from full-screen details = %q", view)
+	}
+	model = updateTaskList(t, model, key("?"))
+	model = updateTaskList(t, model, key("s"))
+	if view := model.View().Content; !strings.Contains(view, "Change task status") {
+		t.Errorf("status picker from full-screen details = %q", view)
+	}
+	model = updateTaskList(t, model, key("esc"))
+	if view := model.View().Content; !strings.Contains(view, "Task details") {
+		t.Errorf("full-screen details after closing status picker = %q", view)
+	}
+}
+
+func TestTaskListKeepsCompactViewOnShortTerminals(t *testing.T) {
+	model := NewTaskList(testBeans())
+	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: 40, Height: fixedLines})
+	model = updateTaskList(t, model, key("enter"))
+	if view := model.View().Content; strings.Contains(view, "Task details") || !strings.Contains(view, "Beanstalk tasks") {
+		t.Errorf("compact view after opening details = %q", view)
 	}
 }
 
@@ -857,6 +919,9 @@ func key(value string) tea.KeyPressMsg {
 	}
 	if value == "right" {
 		return tea.KeyPressMsg(tea.Key{Code: tea.KeyRight})
+	}
+	if value == "esc" {
+		return tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape})
 	}
 	return tea.KeyPressMsg(tea.Key{Text: value, Code: rune(value[0])})
 }
