@@ -21,6 +21,12 @@ func TestStatusLabelsUseDistinctSemanticStyles(t *testing.T) {
 	}
 }
 
+func TestShortcutStylesKeyAndDescriptionSeparately(t *testing.T) {
+	if got, want := shortcut("j/k", "navigate"), ansiCyan+"j/k"+ansiReset+ansiDim+" navigate"+ansiReset; got != want {
+		t.Errorf("shortcut() = %q, want %q", got, want)
+	}
+}
+
 func TestTaskRowViewKeepsStyledRowsWithinTerminalWidth(t *testing.T) {
 	row := taskRow{bean: beans.Bean{ID: "project-a", Title: "A task title", Status: "in-progress", Priority: "normal", Type: "task"}}
 	view := taskRowView(row, nil, nil, true, 50)

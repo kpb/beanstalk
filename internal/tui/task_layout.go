@@ -21,7 +21,7 @@ func (m TaskList) splitView() string {
 		treeWidth,
 		detailWidth,
 	)
-	return panes + muted(truncate(m.splitShortcutHelp(), m.width)) + "\n"
+	return panes + truncate(m.splitShortcutHelp(), m.width) + "\n"
 }
 
 func (m TaskList) treePane(width, height int) []string {
@@ -40,17 +40,17 @@ func (m TaskList) treePane(width, height int) []string {
 }
 
 func (m TaskList) splitShortcutHelp() string {
-	help := "j/k navigate  h/l tree"
+	help := shortcut("j/k", "navigate") + "  " + shortcut("h/l", "tree")
 	if m.load != nil {
-		help += "  " + m.archiveToggleLabel()
+		help += "  " + shortcut("a", m.archiveToggleLabel()[2:])
 	}
 	if m.claim != nil {
-		help += "  c claim"
+		help += "  " + shortcut("c", "claim")
 	}
 	if m.updateStatus != nil {
-		help += "  s status"
+		help += "  " + shortcut("s", "status")
 	}
-	return help + "  ? help  q quit"
+	return help + "  " + shortcut("?", "help") + "  " + shortcut("q", "quit")
 }
 
 func (m TaskList) detailView() string {
@@ -62,21 +62,21 @@ func (m TaskList) detailView() string {
 		start = min(m.detailOffset, max(0, len(styledLines)-viewportHeight))
 		end = min(len(styledLines), start+viewportHeight)
 	}
-	footer := "j/k scroll  home/end top/bottom  tab/enter/esc back"
+	footer := shortcut("j/k", "scroll") + "  " + shortcut("home/end", "top/bottom") + "  " + shortcut("tab/enter/esc", "back")
 	if m.updateStatus != nil {
-		footer += "  s status"
+		footer += "  " + shortcut("s", "status")
 	}
 	if m.claim != nil {
-		footer += "  c claim"
+		footer += "  " + shortcut("c", "claim")
 	}
 	if m.load != nil {
-		footer += "  r reload"
+		footer += "  " + shortcut("r", "reload")
 	}
-	footer += "  ? help  q quit"
+	footer += "  " + shortcut("?", "help") + "  " + shortcut("q", "quit")
 	if viewportHeight > 0 && len(styledLines) > viewportHeight {
 		footer += fmt.Sprintf("  %d-%d/%d", start+1, end, len(styledLines))
 	}
-	return strings.Join(styledLines[start:end], "\n") + "\n" + muted(truncate(footer, m.width)) + "\n"
+	return strings.Join(styledLines[start:end], "\n") + "\n" + truncate(footer, m.width) + "\n"
 }
 
 func (m TaskList) detailLines() []string {
@@ -160,24 +160,24 @@ func (m TaskList) helpView() string {
 	lines := []string{
 		"Keyboard help",
 		"",
-		"j/k or up/down  move selection (scroll details when open)",
-		"h/l or left/right  collapse, expand, parent, child",
-		"g/G or home/end  first or last task",
-		"tab or enter  show selected task full screen",
-		"esc  return from task details",
-		"home/end  top or bottom of details when open",
-		"r  reload tasks",
+		shortcut("j/k or up/down", "move selection (scroll details when open)"),
+		shortcut("h/l or left/right", "collapse, expand, parent, child"),
+		shortcut("g/G or home/end", "first or last task"),
+		shortcut("tab or enter", "show selected task full screen"),
+		shortcut("esc", "return from task details"),
+		shortcut("home/end", "top or bottom of details when open"),
+		shortcut("r", "reload tasks"),
 	}
 	if m.load != nil {
-		lines = append(lines, "a  "+m.archiveToggleLabel()[2:])
+		lines = append(lines, shortcut("a", m.archiveToggleLabel()[2:]))
 	}
 	if m.claim != nil {
-		lines = append(lines, "c  claim selected todo task")
+		lines = append(lines, shortcut("c", " claim selected todo task"))
 	}
 	if m.updateStatus != nil {
-		lines = append(lines, "s  change selected task status", "    j/k select  enter save  esc cancel")
+		lines = append(lines, shortcut("s", " change selected task status"), "    "+shortcut("j/k", "select")+"  "+shortcut("enter", "save")+"  "+shortcut("esc", "cancel"))
 	}
-	lines = append(lines, "?  close help", "q or ctrl+c  quit")
+	lines = append(lines, shortcut("?", "close help"), shortcut("q or ctrl+c", "quit"))
 	return styleDetail(boundDetail(lines, m.width, m.height))
 }
 
@@ -187,8 +187,8 @@ func (m TaskList) statusPickerView() string {
 		lines := []string{
 			"Change status",
 			"> " + statuses[m.statusCursor],
-			"j/k select  enter save",
-			"esc cancel",
+			shortcut("j/k", "select") + "  " + shortcut("enter", "save"),
+			shortcut("esc", "cancel"),
 		}
 		if m.statusErr != nil {
 			lines = append(lines, fmt.Sprintf("Update failed: %v", m.statusErr))
@@ -206,7 +206,7 @@ func (m TaskList) statusPickerView() string {
 	if m.statusErr != nil {
 		lines = append(lines, "", fmt.Sprintf("Update failed: %v", m.statusErr))
 	}
-	lines = append(lines, "", "j/k select  enter save  esc cancel")
+	lines = append(lines, "", shortcut("j/k", "select")+"  "+shortcut("enter", "save")+"  "+shortcut("esc", "cancel"))
 	return styleDetail(boundDetail(lines, m.width, m.height))
 }
 

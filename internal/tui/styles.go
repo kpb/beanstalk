@@ -29,6 +29,10 @@ func muted(value string) string {
 	return styled(value, ansiDim)
 }
 
+func shortcut(key, description string) string {
+	return styled(key, ansiCyan) + muted(" "+description)
+}
+
 func statusStyle(status string) string {
 	switch status {
 	case "draft":

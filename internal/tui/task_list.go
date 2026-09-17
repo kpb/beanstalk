@@ -344,20 +344,20 @@ func (m TaskList) listView() string {
 	if m.claimMessage != "" {
 		fmt.Fprintf(&output, "\n%s\n", feedbackMessage(m.claimMessage))
 	}
-	help := "j/k navigate  h/l or left/right collapse/expand  g/G first/last"
+	help := shortcut("j/k", "navigate") + "  " + shortcut("h/l or left/right", "collapse/expand") + "  " + shortcut("g/G", "first/last")
 	if m.load != nil {
-		help += "  r reload  " + m.archiveToggleLabel()
+		help += "  " + shortcut("r", "reload") + "  " + shortcut("a", m.archiveToggleLabel()[2:])
 	}
 	if len(m.rows) > 0 {
-		help += "  tab details"
+		help += "  " + shortcut("tab", "details")
 		if m.claim != nil {
-			help += "  c claim"
+			help += "  " + shortcut("c", "claim")
 		}
 		if m.updateStatus != nil {
-			help += "  s status"
+			help += "  " + shortcut("s", "status")
 		}
 	}
-	output.WriteString("\n" + muted(help+"  ? help  q quit") + "\n")
+	output.WriteString("\n" + help + "  " + shortcut("?", "help") + "  " + shortcut("q", "quit") + "\n")
 	return output.String()
 }
 
@@ -412,7 +412,7 @@ func (m TaskList) compactView() string {
 		if m.claimMessage != "" && m.height != 3 {
 			lines = append(lines, truncate(feedbackMessage(m.claimMessage), m.width))
 		}
-		lines = append(lines, muted("q quit"))
+		lines = append(lines, shortcut("q", "quit"))
 	}
 	return strings.Join(lines[:min(len(lines), m.height)], "\n") + "\n"
 }

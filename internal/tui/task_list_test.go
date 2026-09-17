@@ -57,8 +57,9 @@ func TestTaskListScrollsAndRenders(t *testing.T) {
 	}
 
 	view := model.View()
+	content := unstyled(view.Content)
 	for _, want := range []string{"Beanstalk tasks (3)", "> project-c", "q quit"} {
-		if !strings.Contains(view.Content, want) {
+		if !strings.Contains(content, want) {
 			t.Errorf("view does not contain %q:\n%s", want, view.Content)
 		}
 	}
@@ -82,7 +83,7 @@ func TestTaskListBoundsInitialAndShortTerminalViews(t *testing.T) {
 	if got := model.visibleRows(); got != 1 {
 		t.Errorf("short-terminal visible rows = %d, want 1", got)
 	}
-	view := model.View().Content
+	view := unstyled(model.View().Content)
 	if !strings.Contains(view, "> project-a") || strings.Contains(view, "project-b") {
 		t.Errorf("short-terminal view = %q", view)
 	}
@@ -99,7 +100,7 @@ func TestTaskListRendersSplitDetailPaneAndHelp(t *testing.T) {
 		WithStatusUpdater(func(string, string) error { return nil }),
 	)
 	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: splitPaneWidth, Height: 18})
-	view := model.View().Content
+	view := unstyled(model.View().Content)
 	for _, want := range []string{"Tasks (3)", "project-a", "Selected task body", "╭", "╰", "│", "j/k navigate", "q quit"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("split view does not contain %q:\n%s", want, view)
@@ -108,7 +109,7 @@ func TestTaskListRendersSplitDetailPaneAndHelp(t *testing.T) {
 
 	model = updateTaskList(t, model, key("?"))
 	for _, want := range []string{"Keyboard help", "tab or enter", "c  claim selected todo task", "s  change selected task status", "enter save"} {
-		if view := model.View().Content; !strings.Contains(view, want) {
+		if view := unstyled(model.View().Content); !strings.Contains(view, want) {
 			t.Errorf("help view does not contain %q:\n%s", want, view)
 		}
 	}
@@ -122,7 +123,7 @@ func TestTaskListTogglesFullScreenDetailAtAnyWidth(t *testing.T) {
 			model := NewTaskList(loaded)
 			model = updateTaskList(t, model, tea.WindowSizeMsg{Width: width, Height: 18})
 			model = updateTaskList(t, model, key("tab"))
-			if view := model.View().Content; !strings.Contains(view, "Task details") || !strings.Contains(view, "Selected task body") || !strings.Contains(view, "tab/enter/esc back") {
+			if view := unstyled(model.View().Content); !strings.Contains(view, "Task details") || !strings.Contains(view, "Selected task body") || !strings.Contains(view, "tab/enter/esc back") {
 				t.Errorf("full-screen detail view = %q", view)
 			}
 			model = updateTaskList(t, model, key("enter"))
@@ -151,7 +152,7 @@ func TestTaskListFullScreenDetailShowsAvailableActions(t *testing.T) {
 	)
 	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: 160, Height: 18})
 	model = updateTaskList(t, model, key("enter"))
-	view := model.View().Content
+	view := unstyled(model.View().Content)
 	for _, want := range []string{"s status", "c claim", "r reload"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("full-screen detail footer does not contain %q:\n%s", want, view)
@@ -461,12 +462,12 @@ func TestTaskListReservesSpaceForClaimFeedback(t *testing.T) {
 	model := NewTaskList(loaded, WithTaskClaimer(func(string) error { return nil }))
 	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: 200, Height: 8})
 	model.claimMessage = "Claimed project-a"
-	if view := model.View().Content; !strings.Contains(view, "Claimed project-a") || !strings.Contains(view, "q quit") {
+	if view := unstyled(model.View().Content); !strings.Contains(view, "Claimed project-a") || !strings.Contains(view, "q quit") {
 		t.Errorf("split view with claim feedback = %q", view)
 	}
 
 	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: 40, Height: 3})
-	if view := model.View().Content; !strings.Contains(view, "Claimed project-a") || !strings.Contains(view, "q quit") {
+	if view := unstyled(model.View().Content); !strings.Contains(view, "Claimed project-a") || !strings.Contains(view, "q quit") {
 		t.Errorf("compact view with claim feedback = %q", view)
 	}
 }
@@ -672,7 +673,7 @@ func TestTaskListReloadPreservesSelection(t *testing.T) {
 	if selected := model.rows[model.cursor].bean.ID; selected != "project-b" {
 		t.Errorf("selected bean after reload = %q, want project-b", selected)
 	}
-	if view := model.View().Content; !strings.Contains(view, "r reload") {
+	if view := unstyled(model.View().Content); !strings.Contains(view, "r reload") {
 		t.Errorf("reload help missing from view = %q", view)
 	}
 }
@@ -695,7 +696,7 @@ func TestTaskListTogglesArchivedTasks(t *testing.T) {
 	if !model.showArchived || !equalStringSlices(rowIDs(model.rows), []string{"active", "archived"}) {
 		t.Errorf("model after showing archived tasks = %#v", model)
 	}
-	if view := model.View().Content; !strings.Contains(view, "a hide archived") {
+	if view := unstyled(model.View().Content); !strings.Contains(view, "a hide archived") {
 		t.Errorf("archive toggle help missing from view = %q", view)
 	}
 
@@ -943,6 +944,20 @@ func key(value string) tea.KeyPressMsg {
 		return tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape})
 	}
 	return tea.KeyPressMsg(tea.Key{Text: value, Code: rune(value[0])})
+}
+
+func unstyled(value string) string {
+	var output strings.Builder
+	for index := 0; index < len(value); {
+		if end, found := ansiSequenceEnd(value, index); found {
+			index = end
+			continue
+		}
+		rune, size := runeAt(value, index)
+		output.WriteRune(rune)
+		index += size
+	}
+	return output.String()
 }
 
 func testBeans() []beans.Bean {
