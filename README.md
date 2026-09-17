@@ -106,6 +106,7 @@ scripts, and coding agents.
 ```bash
 beanstalk init
 beanstalk list --status todo
+beanstalk update project-a1b2 --body "Describe the task."
 beanstalk archive
 source <(beanstalk completion bash)
 ```

@@ -94,6 +94,73 @@ func TestUpdateCommandReportsInvalidRequests(t *testing.T) {
 	}
 }
 
+func TestUpdateCommandReplacesBodyIncludingEmptyBody(t *testing.T) {
+	workingDirectory := initializedProject(t)
+	writeBean(t, workingDirectory, ".beans/project-a1--task.md", beans.Bean{ID: "project-a1", Title: "Task", Status: "todo", Type: "task", Body: "Original body."})
+	t.Chdir(workingDirectory)
+
+	command := NewRootCommand()
+	command.SetArgs([]string{"update", "project-a1", "--body", "First line.\n\nSecond line."})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("replacing body: %v", err)
+	}
+	bean, err := beans.Find(workingDirectory, "project-a1")
+	if err != nil {
+		t.Fatalf("finding bean: %v", err)
+	}
+	if bean.Body != "First line.\n\nSecond line." {
+		t.Errorf("body = %q", bean.Body)
+	}
+
+	command = NewRootCommand()
+	command.SetArgs([]string{"update", "project-a1", "--body", ""})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("removing body: %v", err)
+	}
+	bean, err = beans.Find(workingDirectory, "project-a1")
+	if err != nil {
+		t.Fatalf("finding bean: %v", err)
+	}
+	if bean.Body != "" {
+		t.Errorf("body = %q, want empty", bean.Body)
+	}
+}
+
+func TestUpdateCommandCombinesBodyAndStatusWithJSONOutput(t *testing.T) {
+	workingDirectory := initializedProject(t)
+	path := filepath.Join(workingDirectory, ".beans", "project-a1--task.md")
+	contents := "---\n# project-a1\ntitle: Task\nstatus: todo\ncustom_field: preserve me\n---\nOriginal body.\n"
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatalf("writing bean: %v", err)
+	}
+	t.Chdir(workingDirectory)
+
+	command := NewRootCommand()
+	output := new(bytes.Buffer)
+	command.SetOut(output)
+	command.SetArgs([]string{"update", "project-a1", "--status", "in-progress", "--body", "Updated body.", "--json"})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("updating bean: %v", err)
+	}
+	var response struct {
+		Success bool       `json:"success"`
+		Bean    beans.Bean `json:"bean"`
+	}
+	if err := json.Unmarshal(output.Bytes(), &response); err != nil {
+		t.Fatalf("decoding JSON output: %v\n%s", err, output.String())
+	}
+	if !response.Success || response.Bean.Status != "in-progress" || response.Bean.Body != "Updated body." {
+		t.Errorf("JSON response = %#v", response)
+	}
+	updated, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading updated bean: %v", err)
+	}
+	if !strings.Contains(string(updated), "custom_field: preserve me") {
+		t.Errorf("updated bean does not preserve custom field:\n%s", updated)
+	}
+}
+
 func TestUpdateCommandRejectsDuplicateIDs(t *testing.T) {
 	workingDirectory := initializedProject(t)
 	writeBean(t, workingDirectory, ".beans/project-a1--first.md", beans.Bean{ID: "project-a1", Title: "First", Status: "todo", Type: "task"})

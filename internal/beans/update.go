@@ -27,6 +27,7 @@ const (
 type UpdateFields struct {
 	Status *string
 	Parent *string
+	Body   *string
 }
 
 // Find returns the bean with the exact ID from the configured Beans directory.
@@ -60,7 +61,7 @@ func UpdateStatus(workingDirectory, id, status string, updatedAt time.Time) (Bea
 	return Update(workingDirectory, id, UpdateFields{Status: &status}, updatedAt)
 }
 
-// Update changes supported bean metadata while preserving other front matter and body.
+// Update changes supported bean metadata and body while preserving other front matter.
 func Update(workingDirectory, id string, fields UpdateFields, updatedAt time.Time) (Bean, error) {
 	archiveLock, err := lockArchive(workingDirectory)
 	if err != nil {
@@ -272,6 +273,9 @@ func updateLocked(workingDirectory, id string, fields UpdateFields, updatedAt ti
 	if fields.Parent != nil {
 		bean.Parent = *fields.Parent
 	}
+	if fields.Body != nil {
+		bean.Body = *fields.Body
+	}
 	bean.UpdatedAt = updatedAt
 	return bean, nil
 }
@@ -303,6 +307,9 @@ func updateBeanFile(path string, fields UpdateFields, updatedAt time.Time) error
 		} else if err := setMetadataValue(&document, "parent", *fields.Parent); err != nil {
 			return fmt.Errorf("updating %s: %w", path, err)
 		}
+	}
+	if fields.Body != nil {
+		body = *fields.Body
 	}
 	if err := setMetadataValue(&document, "updated_at", updatedAt.Format(time.RFC3339)); err != nil {
 		return fmt.Errorf("updating %s: %w", path, err)

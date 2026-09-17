@@ -56,16 +56,19 @@ beanstalk show project-a1b2 --json
 
 ## Update And Organize Tasks
 
-Update status or parent metadata by ID:
+Update status, parent metadata, or the Markdown body by ID:
 
 ```bash
 beanstalk update project-a1b2 --status in-progress
 beanstalk update project-a1b2 --status completed --json
 beanstalk update project-a1b2 --parent project-c3d4
 beanstalk update project-a1b2 --parent ""
+beanstalk update project-a1b2 --body "Document the required behavior."
+beanstalk update project-a1b2 --body ""
 ```
 
 Parents must reference an existing task and cannot form cycles. Passing an empty `--parent` removes the parent link.
+`--body` replaces the body verbatim; passing an empty value clears it. Flags can be combined in one atomic update.
 
 Archive completed and scrapped tasks with an explicit bulk operation:
 
@@ -135,5 +138,5 @@ beanstalk update project-a1b2 --status completed --json
 
 ## Supported Scope
 
-Beanstalk intentionally does not implement ready filtering, search, multi-ID show, body edits, relationships beyond a
-single parent link, etags, GraphQL, web/server features, agent plugins, or worktree automation.
+Beanstalk intentionally does not implement ready filtering, search, multi-ID show, relationships beyond a single parent
+link, etags, GraphQL, web/server features, agent plugins, or worktree automation.

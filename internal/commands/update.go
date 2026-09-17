@@ -13,6 +13,7 @@ import (
 type updateOptions struct {
 	status string
 	parent string
+	body   string
 	json   bool
 }
 
@@ -26,8 +27,9 @@ func newUpdateCommand() *cobra.Command {
 		RunE: func(command *cobra.Command, args []string) error {
 			statusChanged := command.Flags().Changed("status")
 			parentChanged := command.Flags().Changed("parent")
-			if !statusChanged && !parentChanged {
-				return fmt.Errorf("at least one of --status or --parent is required")
+			bodyChanged := command.Flags().Changed("body")
+			if !statusChanged && !parentChanged && !bodyChanged {
+				return fmt.Errorf("at least one of --status, --parent, or --body is required")
 			}
 			if statusChanged && (options.status == "" || !beanStatuses[options.status]) {
 				return fmt.Errorf("invalid status %q", options.status)
@@ -42,6 +44,9 @@ func newUpdateCommand() *cobra.Command {
 			}
 			if parentChanged {
 				fields.Parent = &options.parent
+			}
+			if bodyChanged {
+				fields.Body = &options.body
 			}
 			bean, err := beans.Update(workingDirectory, args[0], fields, time.Now())
 			if err != nil {
@@ -64,6 +69,7 @@ func newUpdateCommand() *cobra.Command {
 	}
 	command.Flags().StringVarP(&options.status, "status", "s", "", "New status")
 	command.Flags().StringVar(&options.parent, "parent", "", "Parent bean ID; pass an empty value to remove")
+	command.Flags().StringVarP(&options.body, "body", "d", "", "Markdown body; pass an empty value to remove")
 	command.Flags().BoolVar(&options.json, "json", false, "Output JSON")
 	return command
 }
