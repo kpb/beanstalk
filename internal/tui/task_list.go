@@ -331,7 +331,7 @@ func (m TaskList) listView() string {
 	title := fmt.Sprintf("Beanstalk tasks (%d)", len(m.beans))
 	fmt.Fprintf(&output, "%s\n\n", heading("+-- "+title+" --+"))
 	if len(m.beans) == 0 {
-		output.WriteString("No beans found.\n\nq quit\n")
+		output.WriteString("No beans found.\n\n" + shortcut("q", "quit") + "\n")
 		return output.String()
 	}
 

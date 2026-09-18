@@ -551,6 +551,104 @@ func TestTaskListRendersStatusPickerOnShortTerminals(t *testing.T) {
 	}
 }
 
+func TestTaskListStylesShortcutHintsInEveryView(t *testing.T) {
+	withActions := func() TaskList {
+		return NewTaskList(testBeans(),
+			WithTaskClaimer(func(string) error { return nil }),
+			WithStatusUpdater(func(string, string) error { return nil }),
+		)
+	}
+
+	tests := []struct {
+		name string
+		view func() string
+		want string
+	}{
+		{
+			name: "list footer",
+			view: func() string {
+				model := withActions()
+				model = updateTaskList(t, model, tea.WindowSizeMsg{Width: 80, Height: 12})
+				return model.View().Content
+			},
+			want: shortcut("j/k", "navigate"),
+		},
+		{
+			name: "split footer",
+			view: func() string {
+				model := withActions()
+				model = updateTaskList(t, model, tea.WindowSizeMsg{Width: splitPaneWidth, Height: 18})
+				return model.View().Content
+			},
+			want: shortcut("j/k", "navigate"),
+		},
+		{
+			name: "detail footer",
+			view: func() string {
+				model := withActions()
+				model = updateTaskList(t, model, tea.WindowSizeMsg{Width: 80, Height: 18})
+				model = updateTaskList(t, model, key("enter"))
+				return model.View().Content
+			},
+			want: shortcut("j/k", "scroll"),
+		},
+		{
+			name: "help modal",
+			view: func() string {
+				model := withActions()
+				model = updateTaskList(t, model, tea.WindowSizeMsg{Width: splitPaneWidth, Height: 18})
+				model = updateTaskList(t, model, key("?"))
+				return model.View().Content
+			},
+			want: shortcut("h/l or left/right", "collapse, expand, parent, child"),
+		},
+		{
+			name: "status picker",
+			view: func() string {
+				model := withActions()
+				model = updateTaskList(t, model, tea.WindowSizeMsg{Width: 80, Height: 18})
+				model = updateTaskList(t, model, key("s"))
+				return model.View().Content
+			},
+			want: shortcut("j/k", "select"),
+		},
+		{
+			name: "compact footer",
+			view: func() string {
+				model := withActions()
+				model = updateTaskList(t, model, tea.WindowSizeMsg{Width: 40, Height: fixedLines})
+				return model.View().Content
+			},
+			want: shortcut("q", "quit"),
+		},
+		{
+			name: "compact status picker",
+			view: func() string {
+				model := withActions()
+				model = updateTaskList(t, model, tea.WindowSizeMsg{Width: 40, Height: fixedLines})
+				model = updateTaskList(t, model, key("s"))
+				return model.View().Content
+			},
+			want: shortcut("j/k", "select"),
+		},
+		{
+			name: "empty list",
+			view: func() string {
+				return NewTaskList(nil).View().Content
+			},
+			want: shortcut("q", "quit"),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if view := test.view(); !strings.Contains(view, test.want) {
+				t.Errorf("view does not contain styled shortcut %q:\n%s", test.want, view)
+			}
+		})
+	}
+}
+
 func TestTaskListReservesSpaceForClaimFeedback(t *testing.T) {
 	loaded := append(testBeans(),
 		beans.Bean{ID: "project-d", Title: "Fourth"},

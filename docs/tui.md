@@ -24,7 +24,8 @@ task in a full-screen detail view at any terminal width; press Tab, Enter, or Es
 When details exceed the screen height, use the arrow keys or `j`/`k` to scroll; Home and End jump to the beginning and
 end of the detail content.
 
-The wide layout keeps keyboard shortcuts in a shared footer below both panes, leaving the panes for task content.
+The wide layout keeps keyboard shortcuts in a shared footer below both panes, leaving the panes for task content. Shortcut
+keys are cyan and their descriptions are dimmed so the available actions remain easy to scan.
 Press `?` to open keyboard help in a centered, bordered overlay. The task list remains visible behind the dimmed overlay;
 press `?` or Esc to close it.
 
