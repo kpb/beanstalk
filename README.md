@@ -47,6 +47,15 @@ curl -fsSL https://raw.githubusercontent.com/kpb/beanstalk/main/install.sh | VER
 The installer requires a POSIX shell, `awk`, `curl`, `install`, `mkdir`, `mktemp`, `rm`, `tar`, `uname`, and either
 `sha256sum` or `shasum`.
 
+### Homebrew
+
+Install the latest release from the project tap:
+
+```bash
+brew tap kpb/tap
+brew install beanstalk
+```
+
 ### Verify Release Provenance
 
 Release archives from v0.4.0 onward include GitHub build attestations. After downloading an archive, optionally verify

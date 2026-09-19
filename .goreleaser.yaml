@@ -36,3 +36,19 @@ archives:
 checksum:
   name_template: checksums.txt
   algorithm: sha256
+
+brews:
+  - name: beanstalk
+    ids:
+      - beanstalk
+    homepage: https://github.com/kpb/beanstalk
+    description: Terminal-native implementation of the Beans task-file format
+    license: GPL-3.0-only
+    repository:
+      owner: kpb
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: github-actions[bot]
+      email: 41898282+github-actions[bot]@users.noreply.github.com
