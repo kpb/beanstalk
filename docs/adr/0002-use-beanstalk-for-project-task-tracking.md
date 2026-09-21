@@ -29,5 +29,5 @@ the documented list, claim, show, and update workflow to work on tracked tasks.
   on-disk format.
 - Contributors and agents use Beanstalk's CLI workflow to create, claim, and
   complete tracked work.
-- The repository does not adopt Beanstalk for task tracking until the first
-  agent CLI milestone is complete.
+- The first agent CLI milestone is complete, and this repository now uses
+  Beanstalk to track project work.
