@@ -39,6 +39,7 @@ checksum:
 
 brews:
   - name: beanstalk
+    directory: Formula
     ids:
       - beanstalk
     homepage: https://github.com/kpb/beanstalk
