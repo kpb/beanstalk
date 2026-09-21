@@ -147,17 +147,6 @@ go run ./cmd/beanstalk version
 CI runs tests, vet, and a native build on Linux, macOS, and Windows. The executable TUI smoke test runs on Linux and
 macOS through a pseudoterminal; Windows receives the native task-file, locking, and executable build coverage.
 
-## Roadmap
-
-This is a high-level view. Version-controlled Beans task files are the source of truth for planned work.
-
-### v0.5.0
-
-- Edit task bodies through `beanstalk update --body`.
-- Improve selected-task navigation and contextual help in the TUI.
-- Improve TUI shortcut readability.
-- Publish a project-maintained Homebrew tap.
-
 ## License
 
 Beanstalk is licensed under the GNU General Public License, version 3. See [LICENSE][license].
