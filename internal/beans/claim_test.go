@@ -86,6 +86,52 @@ func TestClaimDoesNotOverwriteConcurrentUpdate(t *testing.T) {
 	}
 }
 
+func TestUpdateRejectsInvalidStatus(t *testing.T) {
+	for _, update := range []struct {
+		name string
+		call func(string) error
+	}{
+		{
+			name: "UpdateStatus",
+			call: func(workingDirectory string) error {
+				_, err := UpdateStatus(workingDirectory, "project-a1", "unknown", time.Now())
+				return err
+			},
+		},
+		{
+			name: "Update",
+			call: func(workingDirectory string) error {
+				status := "unknown"
+				_, err := Update(workingDirectory, "project-a1", UpdateFields{Status: &status}, time.Now())
+				return err
+			},
+		},
+	} {
+		t.Run(update.name, func(t *testing.T) {
+			workingDirectory := claimTestProject(t)
+			err := update.call(workingDirectory)
+			if !errors.Is(err, ErrInvalidBeanStatus) {
+				t.Errorf("update error = %v, want ErrInvalidBeanStatus", err)
+			}
+			loaded, err := Load(workingDirectory)
+			if err != nil {
+				t.Fatalf("loading bean after rejected update: %v", err)
+			}
+			if len(loaded) != 1 || loaded[0].Status != "todo" {
+				t.Errorf("loaded beans = %#v", loaded)
+			}
+		})
+	}
+}
+
+func TestUpdateReturnsNotFoundBeforeInvalidStatus(t *testing.T) {
+	workingDirectory := claimTestProject(t)
+	_, err := UpdateStatus(workingDirectory, "missing", "unknown", time.Now())
+	if !errors.Is(err, ErrBeanNotFound) {
+		t.Errorf("update error = %v, want ErrBeanNotFound", err)
+	}
+}
+
 func TestLockBeanUsesSidecarFile(t *testing.T) {
 	workingDirectory := claimTestProject(t)
 	path := filepath.Join(workingDirectory, ".beans", "project-a1--task.md")

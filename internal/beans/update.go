@@ -79,6 +79,9 @@ func Update(workingDirectory, id string, fields UpdateFields, updatedAt time.Tim
 	if err != nil {
 		return Bean{}, err
 	}
+	if fields.Status != nil && !validStatuses[*fields.Status] {
+		return Bean{}, fmt.Errorf("%w %q", ErrInvalidBeanStatus, *fields.Status)
+	}
 	lock, err := lockBean(path)
 	if err != nil {
 		return Bean{}, err
