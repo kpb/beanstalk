@@ -80,6 +80,9 @@ func createBean(workingDirectory, title string, options createOptions) (beans.Be
 	if err != nil {
 		return beans.Bean{}, err
 	}
+	if err := validateBeanPrefix(config.Beans.Prefix); err != nil {
+		return beans.Bean{}, err
+	}
 	if title == "" {
 		title = "Untitled"
 	}
@@ -142,7 +145,10 @@ func createBean(workingDirectory, title string, options createOptions) (beans.Be
 		if slug == "" {
 			name = id + ".md"
 		}
-		path := filepath.Join(beansPath, name)
+		path, err := beanPath(beansPath, name)
+		if err != nil {
+			return beans.Bean{}, err
+		}
 		if err := beans.ValidateParent(workingDirectory, id, options.parent); err != nil {
 			return beans.Bean{}, err
 		}
@@ -168,6 +174,25 @@ func createBean(workingDirectory, title string, options createOptions) (beans.Be
 		}
 	}
 	return beans.Bean{}, errors.New("could not generate a unique bean ID")
+}
+
+func validateBeanPrefix(prefix string) error {
+	if strings.ContainsAny(prefix, "/\\") {
+		return fmt.Errorf("invalid beans.prefix %q: must not contain path separators", prefix)
+	}
+	return nil
+}
+
+func beanPath(directory, name string) (string, error) {
+	path := filepath.Join(directory, name)
+	relativePath, err := filepath.Rel(directory, path)
+	if err != nil {
+		return "", fmt.Errorf("resolving bean path: %w", err)
+	}
+	if relativePath == ".." || strings.HasPrefix(relativePath, ".."+string(filepath.Separator)) || filepath.IsAbs(relativePath) {
+		return "", fmt.Errorf("bean path escapes beans directory: %s", name)
+	}
+	return path, nil
 }
 
 func generateBeanID(prefix string, length int) (string, error) {

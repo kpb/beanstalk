@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -127,6 +128,49 @@ func TestCreateCommandRejectsInvalidStatus(t *testing.T) {
 	command.SetArgs([]string{"create", "Invalid", "--status", "unknown"})
 	if err := command.Execute(); err == nil || !strings.Contains(err.Error(), "invalid status") {
 		t.Errorf("create error = %v", err)
+	}
+}
+
+func TestCreateBeanRejectsUnsafePrefix(t *testing.T) {
+	for _, prefix := range []string{"../outside-", "nested/", `nested\`} {
+		t.Run(prefix, func(t *testing.T) {
+			workingDirectory := initializedProject(t)
+			configPath := filepath.Join(workingDirectory, ".beans.yml")
+			config, err := os.ReadFile(configPath)
+			if err != nil {
+				t.Fatalf("reading config: %v", err)
+			}
+			lines := strings.Split(string(config), "\n")
+			for index, line := range lines {
+				if strings.HasPrefix(strings.TrimSpace(line), "prefix:") {
+					lines[index] = "  prefix: " + strconv.Quote(prefix)
+				}
+			}
+			if err := os.WriteFile(configPath, []byte(strings.Join(lines, "\n")), 0o644); err != nil {
+				t.Fatalf("writing config: %v", err)
+			}
+
+			_, err = createBean(workingDirectory, "Unsafe", createOptions{})
+			if err == nil || !strings.Contains(err.Error(), "invalid beans.prefix") {
+				t.Errorf("create error = %v", err)
+			}
+			entries, err := os.ReadDir(filepath.Join(workingDirectory, ".beans"))
+			if err != nil {
+				t.Fatalf("reading beans directory: %v", err)
+			}
+			for _, entry := range entries {
+				if strings.HasSuffix(entry.Name(), ".md") {
+					t.Errorf("created bean %q with unsafe prefix", entry.Name())
+				}
+			}
+		})
+	}
+}
+
+func TestBeanPathRejectsEscapingPath(t *testing.T) {
+	_, err := beanPath(t.TempDir(), filepath.Join("..", "outside.md"))
+	if err == nil || !strings.Contains(err.Error(), "escapes beans directory") {
+		t.Errorf("beanPath error = %v", err)
 	}
 }
 
