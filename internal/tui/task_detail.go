@@ -6,16 +6,17 @@ import (
 	"time"
 
 	"github.com/kpb/beanstalk/internal/beans"
+	"github.com/kpb/beanstalk/internal/terminal"
 )
 
 // renderTaskDetail renders a selected task within the space allocated to a detail pane.
 func renderTaskDetail(loaded []beans.Bean, selected beans.Bean, width, height int) string {
-	lines := []string{"Task details", "", selected.Title}
+	lines := []string{"Task details", "", terminal.Text(selected.Title)}
 	lines = append(lines,
-		"ID: "+selected.ID,
-		"Status: "+selected.Status,
-		"Type: "+selected.Type,
-		"Priority: "+selected.Priority,
+		"ID: "+terminal.Text(selected.ID),
+		"Status: "+terminal.Text(selected.Status),
+		"Type: "+terminal.Text(selected.Type),
+		"Priority: "+terminal.Text(selected.Priority),
 		"Tags: "+displayTags(selected.Tags),
 		"Created: "+selected.CreatedAt.UTC().Format(time.RFC3339),
 		"Updated: "+selected.UpdatedAt.UTC().Format(time.RFC3339),
@@ -28,7 +29,7 @@ func renderTaskDetail(loaded []beans.Bean, selected beans.Bean, width, height in
 	if selected.Body == "" {
 		lines = append(lines, "-")
 	} else {
-		lines = append(lines, strings.Split(selected.Body, "\n")...)
+		lines = append(lines, strings.Split(terminal.Lines(selected.Body), "\n")...)
 	}
 	return boundDetail(lines, width, height)
 }
@@ -48,9 +49,9 @@ func taskHierarchy(loaded []beans.Bean) (map[string]beans.Bean, map[string][]bea
 func hierarchyDetails(selected beans.Bean, byID map[string]beans.Bean, children map[string][]beans.Bean) []string {
 	parent := "-"
 	if selected.Parent != "" {
-		parent = selected.Parent
+		parent = terminal.Text(selected.Parent)
 		if bean, found := byID[selected.Parent]; found {
-			parent += " " + bean.Title
+			parent += " " + terminal.Text(bean.Title)
 		}
 	}
 	lines := []string{"Parent: " + parent}
@@ -59,7 +60,7 @@ func hierarchyDetails(selected beans.Bean, byID map[string]beans.Bean, children 
 	}
 	lines = append(lines, "Children:")
 	for _, child := range children[selected.ID] {
-		lines = append(lines, "  "+child.ID+" "+child.Title)
+		lines = append(lines, "  "+terminal.Text(child.ID)+" "+terminal.Text(child.Title))
 	}
 	return lines
 }
@@ -71,11 +72,11 @@ func milestoneDetails(loaded []beans.Bean, selected beans.Bean, byID map[string]
 	}
 	progresses, err := beans.MilestoneProgresses(loaded)
 	if err != nil {
-		return []string{"Milestone: " + milestone.ID + " " + milestone.Title}
+		return []string{"Milestone: " + terminal.Text(milestone.ID) + " " + terminal.Text(milestone.Title)}
 	}
 	for _, progress := range progresses {
 		if progress.ID == milestone.ID {
-			return []string{fmt.Sprintf("Milestone: %s %s (%d/%d, %d%%)", progress.ID, progress.Title, progress.Resolved, progress.Total, progress.Percent)}
+			return []string{fmt.Sprintf("Milestone: %s %s (%d/%d, %d%%)", terminal.Text(progress.ID), terminal.Text(progress.Title), progress.Resolved, progress.Total, progress.Percent)}
 		}
 	}
 	return nil
@@ -96,7 +97,7 @@ func displayTags(tags []string) string {
 	if len(tags) == 0 {
 		return "-"
 	}
-	return strings.Join(tags, ", ")
+	return terminal.Text(strings.Join(tags, ", "))
 }
 
 func boundDetail(lines []string, width, height int) string {

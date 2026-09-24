@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/kpb/beanstalk/internal/beans"
+	"github.com/kpb/beanstalk/internal/terminal"
 )
 
 const (
@@ -343,7 +344,7 @@ func (m TaskList) listView() string {
 		output.WriteByte('\n')
 	}
 	if m.reloadErr != nil {
-		fmt.Fprintf(&output, "\n%s\n", styled(fmt.Sprintf("Reload failed: %v", m.reloadErr), ansiRed))
+		fmt.Fprintf(&output, "\n%s\n", styled(terminal.Text(fmt.Sprintf("Reload failed: %v", m.reloadErr)), ansiRed))
 	}
 	if m.claimMessage != "" {
 		fmt.Fprintf(&output, "\n%s\n", feedbackMessage(m.claimMessage))
@@ -422,6 +423,7 @@ func (m TaskList) compactView() string {
 }
 
 func feedbackMessage(message string) string {
+	message = terminal.Text(message)
 	if strings.HasPrefix(message, "Claimed ") {
 		return styled(message, ansiGreen)
 	}

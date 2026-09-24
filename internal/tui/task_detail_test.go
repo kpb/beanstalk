@@ -30,6 +30,21 @@ func TestRenderTaskDetailIncludesMetadataHierarchyProgressAndBody(t *testing.T) 
 	}
 }
 
+func TestRenderTaskDetailEscapesTerminalControls(t *testing.T) {
+	selected := beans.Bean{ID: "task\x1b", Title: "Task\rtitle", Status: "todo", Type: "task", Priority: "normal", Tags: []string{"tag\a"}, Body: "Body\x1b[2J\nnext\rline"}
+	detail := renderTaskDetail([]beans.Bean{selected}, selected, 120, 0)
+	for _, control := range []string{"\x1b", "\r", "\a"} {
+		if strings.Contains(detail, control) {
+			t.Errorf("detail contains control %q: %q", control, detail)
+		}
+	}
+	for _, want := range []string{`task\x1b`, `Task\x0dtitle`, `tag\x07`, `Body\x1b[2J`, `next\x0dline`} {
+		if !strings.Contains(detail, want) {
+			t.Errorf("detail does not contain %q: %q", want, detail)
+		}
+	}
+}
+
 func TestRenderTaskDetailWrapsAndBoundsOutput(t *testing.T) {
 	selected := beans.Bean{ID: "task", Title: "A very long task title", Status: "todo", Type: "task", Priority: "normal", Body: "This body line needs wrapping."}
 	got := renderTaskDetail([]beans.Bean{selected}, selected, 12, 4)

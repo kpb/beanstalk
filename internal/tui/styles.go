@@ -3,6 +3,8 @@ package tui
 import (
 	"fmt"
 	"strings"
+
+	"github.com/kpb/beanstalk/internal/terminal"
 )
 
 const (
@@ -86,7 +88,7 @@ func taskRowView(row taskRow, children, collapsed map[string]bool, selected bool
 	if selected {
 		marker = ">"
 	}
-	plain := truncate(fmt.Sprintf("%s %-18s | %-12s | %-9s | %-9s | %-13s | %s", marker, bean.ID, bean.Status, bean.Priority, bean.Type, parent, treeTitle(row, children, collapsed)), width)
+	plain := truncate(fmt.Sprintf("%s %-18s | %-12s | %-9s | %-9s | %-13s | %s", marker, terminal.Text(bean.ID), terminal.Text(bean.Status), terminal.Text(bean.Priority), terminal.Text(bean.Type), terminal.Text(parent), terminal.Text(treeTitle(row, children, collapsed))), width)
 	plain = strings.Replace(plain, bean.Status, statusLabel(bean.Status), 1)
 	if selected {
 		return styled(plain, ansiBold, ansiCyan)

@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/kpb/beanstalk/internal/beans"
+	"github.com/kpb/beanstalk/internal/terminal"
 	"github.com/spf13/cobra"
 )
 
@@ -37,7 +38,7 @@ func newMilestonesCommand() *cobra.Command {
 				return nil
 			}
 			for _, progress := range progresses {
-				command.Printf("%s  %s  %d/%d (%d%%)  %s\n", progress.ID, progress.Status, progress.Resolved, progress.Total, progress.Percent, progress.Title)
+				command.Printf("%s  %s  %d/%d (%d%%)  %s\n", terminal.Text(progress.ID), terminal.Text(progress.Status), progress.Resolved, progress.Total, progress.Percent, terminal.Text(progress.Title))
 			}
 			return nil
 		},

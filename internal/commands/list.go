@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/kpb/beanstalk/internal/beans"
+	"github.com/kpb/beanstalk/internal/terminal"
 	"github.com/spf13/cobra"
 )
 
@@ -59,7 +60,7 @@ func newListCommand() *cobra.Command {
 			}
 			command.Printf("%-18s  S  T  TITLE\n", "ID")
 			for _, row := range rows {
-				command.Printf("%-18s  %s  %s  %s\n", row.bean.ID, statusMarker(row.bean.Status), typeMarker(row.bean.Type), row.title)
+				command.Printf("%-18s  %s  %s  %s\n", terminal.Text(row.bean.ID), statusMarker(row.bean.Status), typeMarker(row.bean.Type), terminal.Text(row.title))
 			}
 			return nil
 		},

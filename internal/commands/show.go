@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/kpb/beanstalk/internal/beans"
+	"github.com/kpb/beanstalk/internal/terminal"
 	"github.com/spf13/cobra"
 )
 
@@ -38,9 +39,9 @@ func newShowCommand() *cobra.Command {
 			if parent == "" {
 				parent = "-"
 			}
-			command.Printf("ID: %s\nStatus: %s\nType: %s\nPriority: %s\nTags: %s\nParent: %s\nCreated: %s\nUpdated: %s\n\n%s\n", bean.ID, bean.Status, bean.Type, bean.Priority, strings.Join(bean.Tags, ", "), parent, bean.CreatedAt.UTC().Format(time.RFC3339), bean.UpdatedAt.UTC().Format(time.RFC3339), bean.Title)
+			command.Printf("ID: %s\nStatus: %s\nType: %s\nPriority: %s\nTags: %s\nParent: %s\nCreated: %s\nUpdated: %s\n\n%s\n", terminal.Text(bean.ID), terminal.Text(bean.Status), terminal.Text(bean.Type), terminal.Text(bean.Priority), terminal.Text(strings.Join(bean.Tags, ", ")), terminal.Text(parent), bean.CreatedAt.UTC().Format(time.RFC3339), bean.UpdatedAt.UTC().Format(time.RFC3339), terminal.Text(bean.Title))
 			if bean.Body != "" {
-				command.Printf("\n%s\n", bean.Body)
+				command.Printf("\n%s\n", terminal.Lines(bean.Body))
 			}
 			return nil
 		},

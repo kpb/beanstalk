@@ -3,6 +3,8 @@ package tui
 import (
 	"fmt"
 	"strings"
+
+	"github.com/kpb/beanstalk/internal/terminal"
 )
 
 func (m TaskList) usesSplitPane() bool {
@@ -17,7 +19,7 @@ func (m TaskList) splitView() string {
 	selected := m.rows[m.cursor].bean
 	panes := joinPanes(
 		borderedPane(fmt.Sprintf("Tasks (%d)", len(m.beans)), m.treePane(treeWidth-2, paneHeight-2), treeWidth, paneHeight),
-		borderedPane(selected.ID, detailLines(m, detailWidth-2, paneHeight-2), detailWidth, paneHeight),
+		borderedPane(terminal.Text(selected.ID), detailLines(m, detailWidth-2, paneHeight-2), detailWidth, paneHeight),
 		treeWidth,
 		detailWidth,
 	)
@@ -93,10 +95,10 @@ func (m TaskList) detailLines() []string {
 func (m TaskList) notices() []string {
 	notices := make([]string, 0, 2)
 	if m.reloadErr != nil {
-		notices = append(notices, fmt.Sprintf("Reload failed: %v", m.reloadErr))
+		notices = append(notices, terminal.Text(fmt.Sprintf("Reload failed: %v", m.reloadErr)))
 	}
 	if m.claimMessage != "" {
-		notices = append(notices, m.claimMessage)
+		notices = append(notices, terminal.Text(m.claimMessage))
 	}
 	return notices
 }
@@ -316,11 +318,11 @@ func (m TaskList) statusPickerView() string {
 			shortcut("esc", "cancel"),
 		}
 		if m.statusErr != nil {
-			lines = append(lines, fmt.Sprintf("Update failed: %v", m.statusErr))
+			lines = append(lines, terminal.Text(fmt.Sprintf("Update failed: %v", m.statusErr)))
 		}
 		return styleDetail(boundDetail(lines, m.width, m.height))
 	}
-	lines := []string{"Change task status", "", selected.ID + " " + selected.Title, ""}
+	lines := []string{"Change task status", "", terminal.Text(selected.ID) + " " + terminal.Text(selected.Title), ""}
 	for index, status := range statuses {
 		marker := " "
 		if index == m.statusCursor {
@@ -329,7 +331,7 @@ func (m TaskList) statusPickerView() string {
 		lines = append(lines, marker+" "+status)
 	}
 	if m.statusErr != nil {
-		lines = append(lines, "", fmt.Sprintf("Update failed: %v", m.statusErr))
+		lines = append(lines, "", terminal.Text(fmt.Sprintf("Update failed: %v", m.statusErr)))
 	}
 	lines = append(lines, "", shortcut("j/k", "select")+"  "+shortcut("enter", "save")+"  "+shortcut("esc", "cancel"))
 	return styleDetail(boundDetail(lines, m.width, m.height))
@@ -340,9 +342,9 @@ func splitTaskRowView(row taskRow, children, collapsed map[string]bool, selected
 	if selected {
 		marker = ">"
 	}
-	metadata := typeIndicator(row.bean.Type) + " " + row.bean.Status
+	metadata := typeIndicator(row.bean.Type) + " " + terminal.Text(row.bean.Status)
 	titleWidth := max(1, width-displayWidth(metadata)-3)
-	title := truncate(treeTitle(row, children, collapsed), titleWidth)
+	title := truncate(terminal.Text(treeTitle(row, children, collapsed)), titleWidth)
 	padding := strings.Repeat(" ", max(1, width-displayWidth(marker)-1-displayWidth(title)-1-displayWidth(metadata)))
 	plain := truncate(marker+" "+title+padding+metadata, width)
 	plain = strings.Replace(plain, row.bean.Status, statusLabel(row.bean.Status), 1)

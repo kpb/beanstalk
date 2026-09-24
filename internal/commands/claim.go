@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kpb/beanstalk/internal/beans"
+	"github.com/kpb/beanstalk/internal/terminal"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +37,7 @@ func newClaimCommand() *cobra.Command {
 					Message string     `json:"message"`
 				}{true, bean, "Bean claimed"})
 			}
-			command.Printf("Claimed %s\n", bean.ID)
+			command.Printf("Claimed %s\n", terminal.Text(bean.ID))
 			return nil
 		},
 	}

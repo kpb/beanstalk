@@ -46,6 +46,19 @@ func TestTaskRowViewKeepsStyledRowsWithinTerminalWidth(t *testing.T) {
 	}
 }
 
+func TestTaskRowViewEscapesTerminalControls(t *testing.T) {
+	row := taskRow{bean: beans.Bean{ID: "project\x1b", Title: "Task\rtitle", Status: "todo", Priority: "normal", Type: "task"}}
+	view := taskRowView(row, nil, nil, false, 100)
+	if strings.Contains(view, "project\x1b") || strings.Contains(view, "Task\rtitle") {
+		t.Errorf("row contains unescaped task content: %q", view)
+	}
+	for _, want := range []string{`project\x1b`, `Task\x0dtitle`} {
+		if !strings.Contains(view, want) {
+			t.Errorf("row does not contain %q: %q", want, view)
+		}
+	}
+}
+
 func TestJoinPanesAlignsStyledContentByDisplayWidth(t *testing.T) {
 	view := joinPanes([]string{heading("Tasks")}, []string{"Details"}, 10, 10)
 	line := strings.TrimSuffix(view, "\n")

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kpb/beanstalk/internal/beans"
+	"github.com/kpb/beanstalk/internal/terminal"
 	"github.com/spf13/cobra"
 )
 
@@ -60,9 +61,9 @@ func newUpdateCommand() *cobra.Command {
 				}{true, bean, "Bean updated"})
 			}
 			if statusChanged && !parentChanged {
-				command.Printf("Updated %s status to %s\n", bean.ID, bean.Status)
+				command.Printf("Updated %s status to %s\n", terminal.Text(bean.ID), terminal.Text(bean.Status))
 			} else {
-				command.Printf("Updated %s\n", bean.ID)
+				command.Printf("Updated %s\n", terminal.Text(bean.ID))
 			}
 			return nil
 		},

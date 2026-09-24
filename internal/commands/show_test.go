@@ -3,6 +3,8 @@ package commands
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -42,6 +44,49 @@ func TestShowCommandDisplaysTaskAndJSON(t *testing.T) {
 	}
 	if shown.ID != "project-a1" || shown.Path != "archive/project-a1--task.md" || shown.Parent != "project-parent" || shown.Body != "Implement the endpoint." || !shown.CreatedAt.Equal(createdAt) || !shown.UpdatedAt.Equal(updatedAt) {
 		t.Errorf("shown bean = %#v", shown)
+	}
+}
+
+func TestShowCommandEscapesTerminalControlsButPreservesJSON(t *testing.T) {
+	workingDirectory := initializedProject(t)
+	bean := beans.Bean{ID: "project-\x1b[31m", Slug: "task", Title: "Task\rtitle", Status: "todo", Type: "task", Tags: []string{"tag\a"}, Body: "Body\x1b[2J\nnext\rline"}
+	contents := "---\ntitle: \"Task\\x0dtitle\"\nstatus: todo\ntype: task\npriority: normal\ntags:\n  - \"tag\\x07\"\n---\n" + bean.Body
+	if err := os.WriteFile(filepath.Join(workingDirectory, ".beans", bean.ID+"--task.md"), []byte(contents), 0o644); err != nil {
+		t.Fatalf("writing bean: %v", err)
+	}
+	t.Chdir(workingDirectory)
+
+	command := NewRootCommand()
+	output := new(bytes.Buffer)
+	command.SetOut(output)
+	command.SetArgs([]string{"show", bean.ID})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("executing show command: %v", err)
+	}
+	for _, control := range []string{"\x1b", "\r", "\a"} {
+		if strings.Contains(output.String(), control) {
+			t.Errorf("human output contains control %q: %q", control, output.String())
+		}
+	}
+	for _, want := range []string{`project-\x1b[31m`, `Task\x0dtitle`, `tag\x07`, `Body\x1b[2J`, `next\x0dline`} {
+		if !strings.Contains(output.String(), want) {
+			t.Errorf("human output does not contain %q: %q", want, output.String())
+		}
+	}
+
+	command = NewRootCommand()
+	output.Reset()
+	command.SetOut(output)
+	command.SetArgs([]string{"show", bean.ID, "--json"})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("executing JSON show command: %v", err)
+	}
+	var shown beans.Bean
+	if err := json.Unmarshal(output.Bytes(), &shown); err != nil {
+		t.Fatalf("decoding JSON output: %v", err)
+	}
+	if shown.ID != bean.ID || shown.Title != bean.Title || shown.Tags[0] != bean.Tags[0] || shown.Body != bean.Body {
+		t.Errorf("JSON bean = %#v, want original controls", shown)
 	}
 }
 

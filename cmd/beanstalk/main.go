@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/kpb/beanstalk/internal/commands"
+	"github.com/kpb/beanstalk/internal/terminal"
 )
 
 func main() {
@@ -20,7 +21,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	command.SetErr(stderr)
 
 	if err := command.Execute(); err != nil {
-		fmt.Fprintln(stderr, "error:", err)
+		fmt.Fprintln(stderr, "error:", terminal.Text(err.Error()))
 		return 1
 	}
 

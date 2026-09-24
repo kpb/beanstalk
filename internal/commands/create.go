@@ -12,6 +12,7 @@ import (
 	"unicode"
 
 	"github.com/kpb/beanstalk/internal/beans"
+	"github.com/kpb/beanstalk/internal/terminal"
 	"github.com/spf13/cobra"
 )
 
@@ -61,7 +62,7 @@ func newCreateCommand() *cobra.Command {
 				}{true, bean, "Bean created"})
 			}
 
-			command.Printf("Created %s %s\n", bean.ID, bean.Path)
+			command.Printf("Created %s %s\n", terminal.Text(bean.ID), terminal.Text(bean.Path))
 			return nil
 		},
 	}
