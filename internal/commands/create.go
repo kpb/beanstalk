@@ -157,21 +157,10 @@ func createBean(workingDirectory, title string, options createOptions) (beans.Be
 		if err != nil {
 			return beans.Bean{}, err
 		}
-		file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
-		if err == nil {
-			_, writeErr := file.Write(contents)
-			closeErr := file.Close()
-			if writeErr != nil {
-				return beans.Bean{}, fmt.Errorf("writing bean: %w", writeErr)
-			}
-			if closeErr != nil {
-				return beans.Bean{}, fmt.Errorf("closing bean: %w", closeErr)
-			}
-			return bean, nil
-		}
-		if !errors.Is(err, os.ErrExist) {
+		if err := beans.WriteFileAtomically(path, contents, 0o644); err != nil {
 			return beans.Bean{}, fmt.Errorf("creating bean: %w", err)
 		}
+		return bean, nil
 	}
 	return beans.Bean{}, errors.New("could not generate a unique bean ID")
 }

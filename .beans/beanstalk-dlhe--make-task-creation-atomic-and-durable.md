@@ -1,11 +1,11 @@
 ---
 # beanstalk-dlhe
 title: Make task creation atomic and durable
-status: todo
+status: completed
 type: bug
 parent: beanstalk-gf92
 created_at: 2026-09-21T14:42:58Z
-updated_at: "2026-09-21T14:49:49Z"
+updated_at: "2026-09-24T03:36:58Z"
 ---
 Task creation writes directly to the destination file and does not sync or remove partial output on a write or close failure.
 

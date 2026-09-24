@@ -57,6 +57,26 @@ func TestLoadReportsMalformedFrontMatter(t *testing.T) {
 	}
 }
 
+func TestWriteFileAtomicallyRemovesTemporaryFileAfterRenameFailure(t *testing.T) {
+	directory := t.TempDir()
+	destination := filepath.Join(directory, "destination")
+	if err := os.Mkdir(destination, 0o755); err != nil {
+		t.Fatalf("creating destination directory: %v", err)
+	}
+
+	err := WriteFileAtomically(destination, []byte("contents"), 0o644)
+	if err == nil || !strings.Contains(err.Error(), "replacing bean file") {
+		t.Errorf("WriteFileAtomically error = %v", err)
+	}
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		t.Fatalf("reading directory: %v", err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "destination" {
+		t.Errorf("directory entries = %#v", entries)
+	}
+}
+
 func TestLoadSupportsCustomPathAndClosingDelimiterAtEOF(t *testing.T) {
 	workingDirectory := t.TempDir()
 	if err := os.Mkdir(filepath.Join(workingDirectory, "tasks"), 0o755); err != nil {
