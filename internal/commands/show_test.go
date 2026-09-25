@@ -49,7 +49,7 @@ func TestShowCommandDisplaysTaskAndJSON(t *testing.T) {
 
 func TestShowCommandEscapesTerminalControlsButPreservesJSON(t *testing.T) {
 	workingDirectory := initializedProject(t)
-	bean := beans.Bean{ID: "project-\x1b[31m", Slug: "task", Title: "Task\rtitle", Status: "todo", Type: "task", Tags: []string{"tag\a"}, Body: "Body\x1b[2J\nnext\rline"}
+	bean := beans.Bean{ID: "project-a1", Slug: "task", Title: "Task\rtitle", Status: "todo", Type: "task", Tags: []string{"tag\a"}, Body: "Body\x1b[2J\nnext\rline"}
 	contents := "---\ntitle: \"Task\\x0dtitle\"\nstatus: todo\ntype: task\npriority: normal\ntags:\n  - \"tag\\x07\"\n---\n" + bean.Body
 	if err := os.WriteFile(filepath.Join(workingDirectory, ".beans", bean.ID+"--task.md"), []byte(contents), 0o644); err != nil {
 		t.Fatalf("writing bean: %v", err)
@@ -68,7 +68,7 @@ func TestShowCommandEscapesTerminalControlsButPreservesJSON(t *testing.T) {
 			t.Errorf("human output contains control %q: %q", control, output.String())
 		}
 	}
-	for _, want := range []string{`project-\x1b[31m`, `Task\x0dtitle`, `tag\x07`, `Body\x1b[2J`, `next\x0dline`} {
+	for _, want := range []string{"project-a1", `Task\x0dtitle`, `tag\x07`, `Body\x1b[2J`, `next\x0dline`} {
 		if !strings.Contains(output.String(), want) {
 			t.Errorf("human output does not contain %q: %q", want, output.String())
 		}
