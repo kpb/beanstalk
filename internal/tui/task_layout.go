@@ -342,12 +342,12 @@ func splitTaskRowView(row taskRow, children, collapsed map[string]bool, selected
 	if selected {
 		marker = ">"
 	}
-	metadata := typeIndicator(row.bean.Type) + " " + terminal.Text(row.bean.Status)
+	status := terminal.Text(row.bean.Status)
+	metadata := typeIndicator(row.bean.Type) + " " + statusCell(status, displayWidth(status))
 	titleWidth := max(1, width-displayWidth(metadata)-3)
 	title := truncate(terminal.Text(treeTitle(row, children, collapsed)), titleWidth)
 	padding := strings.Repeat(" ", max(1, width-displayWidth(marker)-1-displayWidth(title)-1-displayWidth(metadata)))
 	plain := truncate(marker+" "+title+padding+metadata, width)
-	plain = strings.Replace(plain, row.bean.Status, statusLabel(row.bean.Status), 1)
 	if selected {
 		return styled(plain, ansiBold, ansiCyan)
 	}

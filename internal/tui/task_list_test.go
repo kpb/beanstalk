@@ -848,6 +848,17 @@ func TestSplitTaskRowsLeadWithTheHierarchicalTitle(t *testing.T) {
 	}
 }
 
+func TestSplitTaskRowStylesStatusCellSeparately(t *testing.T) {
+	row := taskRow{bean: beans.Bean{ID: "todo-id", Title: "todo title", Status: "todo", Type: "task"}}
+	view := splitTaskRowView(row, nil, nil, false, 40)
+	if strings.Contains(view, ansiYellow+"todo-id") || strings.Contains(view, ansiYellow+"todo title") {
+		t.Errorf("split row styles ID or title as status: %q", view)
+	}
+	if !strings.Contains(view, ansiYellow+"todo"+ansiReset) {
+		t.Errorf("split row does not style status cell: %q", view)
+	}
+}
+
 func TestTaskListReloadPreservesSelection(t *testing.T) {
 	model := NewTaskList(testBeans(), WithTaskLoader(func(bool) ([]beans.Bean, error) {
 		return []beans.Bean{

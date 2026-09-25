@@ -78,6 +78,11 @@ func statusLabel(status string) string {
 	return status
 }
 
+func statusCell(status string, width int) string {
+	status = terminal.Text(status)
+	return statusLabel(status) + strings.Repeat(" ", max(0, width-displayWidth(status)))
+}
+
 func taskRowView(row taskRow, children, collapsed map[string]bool, selected bool, width int) string {
 	bean := row.bean
 	parent := bean.Parent
@@ -88,8 +93,7 @@ func taskRowView(row taskRow, children, collapsed map[string]bool, selected bool
 	if selected {
 		marker = ">"
 	}
-	plain := truncate(fmt.Sprintf("%s %-18s | %-12s | %-9s | %-9s | %-13s | %s", marker, terminal.Text(bean.ID), terminal.Text(bean.Status), terminal.Text(bean.Priority), terminal.Text(bean.Type), terminal.Text(parent), terminal.Text(treeTitle(row, children, collapsed))), width)
-	plain = strings.Replace(plain, bean.Status, statusLabel(bean.Status), 1)
+	plain := truncate(fmt.Sprintf("%s %-18s | %s | %-9s | %-9s | %-13s | %s", marker, terminal.Text(bean.ID), statusCell(bean.Status, 12), terminal.Text(bean.Priority), terminal.Text(bean.Type), terminal.Text(parent), terminal.Text(treeTitle(row, children, collapsed))), width)
 	if selected {
 		return styled(plain, ansiBold, ansiCyan)
 	}

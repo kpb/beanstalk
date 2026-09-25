@@ -59,6 +59,17 @@ func TestTaskRowViewEscapesTerminalControls(t *testing.T) {
 	}
 }
 
+func TestTaskRowViewStylesStatusCellSeparately(t *testing.T) {
+	row := taskRow{bean: beans.Bean{ID: "todo-id", Title: "todo title", Status: "todo", Priority: "normal", Type: "task"}}
+	view := taskRowView(row, nil, nil, false, 100)
+	if strings.Contains(view, ansiYellow+"todo-id") || strings.Contains(view, ansiYellow+"todo title") {
+		t.Errorf("row styles ID or title as status: %q", view)
+	}
+	if !strings.Contains(view, ansiYellow+"todo"+ansiReset) {
+		t.Errorf("row does not style status cell: %q", view)
+	}
+}
+
 func TestJoinPanesAlignsStyledContentByDisplayWidth(t *testing.T) {
 	view := joinPanes([]string{heading("Tasks")}, []string{"Details"}, 10, 10)
 	line := strings.TrimSuffix(view, "\n")
