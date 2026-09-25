@@ -836,9 +836,9 @@ func TestTreeTitleDrawsBranchesAndContinuationGuides(t *testing.T) {
 }
 
 func TestSplitTaskRowsLeadWithTheHierarchicalTitle(t *testing.T) {
-	row := taskRow{bean: beans.Bean{ID: "project-a", Title: "First", Status: "todo", Type: "task"}}
+	row := taskRow{bean: beans.Bean{ID: "project-a", Title: "First", Status: "todo", Type: "bug"}}
 	view := splitTaskRowView(row, nil, nil, true, 40)
-	for _, want := range []string{"> First", "T ", statusLabel("todo")} {
+	for _, want := range []string{"> First", "B ", statusLabel("todo")} {
 		if !strings.Contains(view, want) {
 			t.Errorf("split task row does not contain %q: %q", want, view)
 		}

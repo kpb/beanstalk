@@ -362,6 +362,8 @@ func typeIndicator(taskType string) string {
 		return "E"
 	case "feature":
 		return "F"
+	case "bug":
+		return "B"
 	case "task":
 		return "T"
 	default:
