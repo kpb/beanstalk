@@ -3,6 +3,7 @@ package commands
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,10 +15,7 @@ import (
 
 func TestUpdateCommandUpdatesStatusAndPreservesTaskContents(t *testing.T) {
 	workingDirectory := initializedProject(t)
-	path := filepath.Join(workingDirectory, ".beans", "archive", "project-a1--task.md")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("creating archive: %v", err)
-	}
+	path := filepath.Join(workingDirectory, ".beans", "project-a1--task.md")
 	contents := "---\n# project-a1\ntitle: Keep task details\nstatus: todo\ntype: task\nparent: project-parent\ntags:\n  - api\ncreated_at: 2026-08-15T12:00:00Z\nupdated_at: 2026-08-15T12:00:00Z\ncustom_field: preserve me\n---\nKeep this body exactly.\n"
 	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
 		t.Fatalf("writing bean: %v", err)
@@ -40,7 +38,7 @@ func TestUpdateCommandUpdatesStatusAndPreservesTaskContents(t *testing.T) {
 	if err := json.Unmarshal(output.Bytes(), &response); err != nil {
 		t.Fatalf("decoding JSON output: %v\n%s", err, output.String())
 	}
-	if !response.Success || response.Message != "Bean updated" || response.Bean.Status != "in-progress" || response.Bean.Path != "archive/project-a1--task.md" {
+	if !response.Success || response.Message != "Bean updated" || response.Bean.Status != "in-progress" || response.Bean.Path != "project-a1--task.md" {
 		t.Errorf("JSON response = %#v", response)
 	}
 	if got, want := response.Bean.CreatedAt, time.Date(2026, time.August, 15, 12, 0, 0, 0, time.UTC); !got.Equal(want) {
@@ -72,6 +70,56 @@ func TestUpdateCommandUpdatesStatusAndPreservesTaskContents(t *testing.T) {
 	}
 	if bean.Status != "in-progress" || bean.Parent != "project-parent" || bean.Body != "Keep this body exactly." || !bean.CreatedAt.Equal(response.Bean.CreatedAt) || !bean.UpdatedAt.Equal(response.Bean.UpdatedAt) {
 		t.Errorf("loaded bean = %#v", bean)
+	}
+}
+
+func TestArchivedTaskCannotReenterActiveListViaUpdate(t *testing.T) {
+	workingDirectory := initializedProject(t)
+	writeBean(t, workingDirectory, ".beans/project-a1--task.md", beans.Bean{ID: "project-a1", Title: "Task", Status: "completed", Type: "task", Body: "Keep body."})
+	t.Chdir(workingDirectory)
+	command := NewRootCommand()
+	command.SetArgs([]string{"archive"})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("archiving task: %v", err)
+	}
+	archived := filepath.Join(workingDirectory, ".beans", "archive", "project-a1--task.md")
+	before, err := os.ReadFile(archived)
+	if err != nil {
+		t.Fatalf("reading archived file: %v", err)
+	}
+	command = NewRootCommand()
+	command.SetArgs([]string{"update", "project-a1", "--status", "todo", "--json"})
+	if err := command.Execute(); !errors.Is(err, beans.ErrBeanArchived) {
+		t.Errorf("update error = %v, want ErrBeanArchived", err)
+	}
+	output := new(bytes.Buffer)
+	command = NewRootCommand()
+	command.SetOut(output)
+	command.SetArgs([]string{"list", "--status", "todo", "--json"})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("listing active todo tasks: %v", err)
+	}
+	var listed []beans.Bean
+	if err := json.Unmarshal(output.Bytes(), &listed); err != nil || len(listed) != 0 {
+		t.Errorf("active todo list = %q, decode error = %v", output, err)
+	}
+	output.Reset()
+	command = NewRootCommand()
+	command.SetOut(output)
+	command.SetArgs([]string{"show", "project-a1", "--json"})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("showing archived task: %v", err)
+	}
+	var shown beans.Bean
+	if err := json.Unmarshal(output.Bytes(), &shown); err != nil {
+		t.Fatalf("decoding shown task: %v", err)
+	}
+	if shown.Status != "completed" || shown.Path != "archive/project-a1--task.md" || shown.Body != "Keep body." {
+		t.Errorf("shown archived task = %#v", shown)
+	}
+	after, err := os.ReadFile(archived)
+	if err != nil || string(after) != string(before) {
+		t.Errorf("archived file changed: %q, %v", after, err)
 	}
 }
 

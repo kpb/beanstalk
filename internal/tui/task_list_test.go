@@ -1061,6 +1061,39 @@ func TestTaskListTogglesArchivedTasks(t *testing.T) {
 	}
 }
 
+func TestTaskListTreatsArchivedTasksAsReadOnly(t *testing.T) {
+	active := beans.Bean{ID: "active", Title: "Active", Status: "todo", Type: "task"}
+	archived := beans.Bean{ID: "archived", Path: "archive/archived--task.md", Title: "Archived", Status: "todo", Type: "task"}
+	claims, updates := 0, 0
+	model := NewTaskList([]beans.Bean{active},
+		WithTaskLoader(func(showArchived bool) ([]beans.Bean, error) {
+			if showArchived {
+				return []beans.Bean{active, archived}, nil
+			}
+			return []beans.Bean{active}, nil
+		}),
+		WithTaskClaimer(func(string) error { claims++; return nil }),
+		WithStatusUpdater(func(string, string) error { updates++; return nil }),
+	)
+	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: splitPaneWidth, Height: 18})
+	updated, command := model.Update(key("a"))
+	if command == nil {
+		t.Fatal("archive toggle command is nil")
+	}
+	model = updateTaskList(t, updated.(TaskList), command())
+	model = updateTaskList(t, model, key("down"))
+	for _, action := range []string{"c", "s"} {
+		updated, command := model.Update(key(action))
+		model = updated.(TaskList)
+		if command != nil || model.showStatus || !strings.Contains(plainText(model.View().Content), "Archived tasks are read-only") {
+			t.Errorf("archived task after %q = %#v, command = %v", action, model, command)
+		}
+	}
+	if claims != 0 || updates != 0 {
+		t.Errorf("archived task triggered %d claims and %d status updates", claims, updates)
+	}
+}
+
 func TestTaskListKeepsArchivedVisibilityAfterToggleLoadFailure(t *testing.T) {
 	loadError := errors.New("disk unavailable")
 	model := NewTaskList(testBeans(), WithTaskLoader(func(bool) ([]beans.Bean, error) {

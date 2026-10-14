@@ -132,6 +132,51 @@ func TestUpdateReturnsNotFoundBeforeInvalidStatus(t *testing.T) {
 	}
 }
 
+func TestArchivedBeansRejectUpdatesAndClaimsWithoutChangingFile(t *testing.T) {
+	workingDirectory := claimTestProject(t)
+	archiveDirectory := filepath.Join(workingDirectory, ".beans", "archive")
+	if err := os.Mkdir(archiveDirectory, 0o755); err != nil {
+		t.Fatalf("creating archive: %v", err)
+	}
+	active := filepath.Join(workingDirectory, ".beans", "project-a1--task.md")
+	archived := filepath.Join(archiveDirectory, "project-a1--task.md")
+	if err := os.Rename(active, archived); err != nil {
+		t.Fatalf("moving bean into archive: %v", err)
+	}
+	before, err := os.ReadFile(archived)
+	if err != nil {
+		t.Fatalf("reading archived bean: %v", err)
+	}
+	status := "in-progress"
+	parent := "missing"
+	body := "Changed body"
+	for _, test := range []struct {
+		name string
+		call func() error
+	}{
+		{"status", func() error { _, err := UpdateStatus(workingDirectory, "project-a1", status, time.Now()); return err }},
+		{"parent", func() error {
+			_, err := Update(workingDirectory, "project-a1", UpdateFields{Parent: &parent}, time.Now())
+			return err
+		}},
+		{"body", func() error {
+			_, err := Update(workingDirectory, "project-a1", UpdateFields{Body: &body}, time.Now())
+			return err
+		}},
+		{"claim", func() error { _, err := Claim(workingDirectory, "project-a1", time.Now()); return err }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if err := test.call(); !errors.Is(err, ErrBeanArchived) {
+				t.Errorf("error = %v, want ErrBeanArchived", err)
+			}
+			after, err := os.ReadFile(archived)
+			if err != nil || string(after) != string(before) {
+				t.Errorf("archived file changed: %q, %v", after, err)
+			}
+		})
+	}
+}
+
 func TestLockBeanUsesSidecarFile(t *testing.T) {
 	workingDirectory := claimTestProject(t)
 	path := filepath.Join(workingDirectory, ".beans", "project-a1--task.md")

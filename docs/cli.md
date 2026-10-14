@@ -78,7 +78,8 @@ beanstalk archive --json
 ```
 
 This moves resolved task files to `.beans/archive/` without changing their metadata or contents. Status updates never
-archive tasks automatically.
+archive tasks automatically. Archived tasks are read-only: `update` and `claim` reject them, even if an imported archived
+task has an active status. To make an archived task active again, move its file out of `.beans/archive/` manually.
 
 ## Shell Completion
 

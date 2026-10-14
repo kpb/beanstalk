@@ -15,6 +15,7 @@ var (
 	ErrBeanNotFound     = errors.New("bean not found")
 	ErrDuplicateBeanID  = errors.New("multiple beans have the same ID")
 	ErrBeanNotClaimable = errors.New("bean is not available to claim")
+	ErrBeanArchived     = errors.New("archived beans are read-only")
 	ErrParentCycle      = errors.New("parent link would create a cycle")
 )
 
@@ -75,7 +76,7 @@ func Update(workingDirectory, id string, fields UpdateFields, updatedAt time.Tim
 		}
 		defer lock.Unlock()
 	}
-	_, path, err := findBeanPath(workingDirectory, id)
+	bean, path, err := findBeanPath(workingDirectory, id)
 	if err != nil {
 		return Bean{}, err
 	}
@@ -87,6 +88,9 @@ func Update(workingDirectory, id string, fields UpdateFields, updatedAt time.Tim
 		return Bean{}, err
 	}
 	defer lock.Unlock()
+	if IsArchived(bean) {
+		return Bean{}, fmt.Errorf("%w: %s", ErrBeanArchived, id)
+	}
 	if fields.Parent != nil {
 		if err := ValidateParent(workingDirectory, id, *fields.Parent); err != nil {
 			return Bean{}, err
@@ -152,6 +156,9 @@ func Claim(workingDirectory, id string, updatedAt time.Time) (Bean, error) {
 	bean, _, err := findBeanPath(workingDirectory, id)
 	if err != nil {
 		return Bean{}, err
+	}
+	if IsArchived(bean) {
+		return Bean{}, fmt.Errorf("%w: %s", ErrBeanArchived, id)
 	}
 	if bean.Status != "todo" {
 		return Bean{}, fmt.Errorf("%w: %s is %s", ErrBeanNotClaimable, id, bean.Status)

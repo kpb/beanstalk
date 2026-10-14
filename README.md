@@ -110,7 +110,7 @@ the Beans task-file format while allowing its terminal, agent, and TUI workflows
 ### CLI
 
 Use the CLI to create, organize, inspect, and update Beans-format tasks. It provides text and JSON output for people,
-scripts, and coding agents.
+scripts, and coding agents. Archived tasks can still be inspected by ID, but cannot be updated or claimed.
 
 ```bash
 beanstalk init

@@ -10,8 +10,9 @@ beanstalk
 
 The TUI loads active tasks from the configured Beans directory and uses the same task order as `beanstalk list`. It
 displays the task hierarchy, with parent/child relationships indented beneath their parent. Archived tasks are hidden by
-default and can be shown with `a`. On narrow terminals, each list row includes a task's ID, status, priority, type,
-parent, and title.
+default and can be shown with `a`. Archived tasks are read-only; attempts to claim them or change their status display a
+message without modifying them. On narrow terminals, each list row includes a task's ID, status, priority, type, parent,
+and title.
 
 The TUI checks for task-file changes automatically, normally showing them within one second while preserving the
 selected task when it remains available.

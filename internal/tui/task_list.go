@@ -228,6 +228,10 @@ func (m TaskList) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case "c":
 			if m.claim != nil && len(m.rows) > 0 {
 				selected := m.rows[m.cursor].bean
+				if beans.IsArchived(selected) {
+					m.claimMessage = "Archived tasks are read-only"
+					return m, nil
+				}
 				if selected.Status != "todo" {
 					m.claimMessage = "Only todo tasks can be claimed"
 					return m, nil
@@ -368,6 +372,10 @@ func (m TaskList) listView() string {
 
 func (m *TaskList) openStatusPicker() {
 	if m.updateStatus == nil || len(m.rows) == 0 {
+		return
+	}
+	if beans.IsArchived(m.rows[m.cursor].bean) {
+		m.claimMessage = "Archived tasks are read-only"
 		return
 	}
 	m.showStatus = true
