@@ -16,11 +16,11 @@ parent, and title.
 The TUI checks for task-file changes automatically, normally showing them within one second while preserving the
 selected task when it remains available.
 
-On terminals at least 100 columns wide, the task tree and the selected task's details appear side by side in separately
-bordered panes. The tree leads with titles and branch connectors that show parent and sibling relationships; aligned
-columns at the right show the task ID, one-letter type (M/E/F/B/T), and two-letter status (DR draft, TO todo, IP
-in-progress, CO completed, SC scrapped). Long titles or IDs are shortened to fit the pane; the detail-pane heading shows
-the full ID. Details include the remaining task metadata, body, parent,
+On terminals at least 100 columns wide, the task tree takes roughly 60% of the available space, with the selected task's
+details in a pane beside it. The tree leads with titles and branch connectors that show parent and sibling relationships;
+aligned columns at the right show the task ID, one-letter type (M/E/F/B/T), and two-letter status (DR draft, TO todo, IP
+in-progress, CO completed, SC scrapped). Long titles or IDs are shortened to fit the pane; full-screen details provide
+more space to read them. Details include the remaining task metadata, body, parent,
 children, and milestone progress when the selected task belongs to a milestone. Press Tab or Enter to open the selected
 task in a full-screen detail view at any terminal width; press Tab, Enter, or Esc to return to the task list.
 When details exceed the screen height, use the arrow keys or `j`/`k` to scroll; Home and End jump to the beginning and

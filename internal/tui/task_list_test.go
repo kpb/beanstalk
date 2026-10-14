@@ -883,7 +883,7 @@ func TestSplitTaskRowsAlignMetadataAtMinimumAndWidePaneWidths(t *testing.T) {
 		t.Run(fmt.Sprintf("width %d", terminalWidth), func(t *testing.T) {
 			model := NewTaskList(loaded)
 			model = updateTaskList(t, model, tea.WindowSizeMsg{Width: terminalWidth, Height: 18})
-			paneWidth := (terminalWidth-1)*2/5 - 2
+			paneWidth := (terminalWidth-1)*3/5 - 2
 			lines := model.treePane(paneWidth, 3)
 			idColumns := make([]int, 0, len(loaded))
 			typeColumns := make([]int, 0, len(loaded))
@@ -905,13 +905,34 @@ func TestSplitTaskRowsAlignMetadataAtMinimumAndWidePaneWidths(t *testing.T) {
 			if !strings.Contains(plainText(lines[1]), "└─") {
 				t.Errorf("child row loses hierarchy: %q", lines[1])
 			}
+			if !strings.Contains(plainText(lines[1]), loaded[1].Title) {
+				t.Errorf("child title is truncated at width %d: %q", terminalWidth, lines[1])
+			}
 		})
 	}
 }
 
+func TestSplitTaskPaneUsesSixtyPercentOfAvailableWidth(t *testing.T) {
+	model := NewTaskList(testBeans())
+	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: splitPaneWidth, Height: 18})
+	view := plainText(model.View().Content)
+	firstLine := strings.Split(view, "\n")[0]
+	leftWidth := (splitPaneWidth - 1) * 3 / 5
+	if got := displayWidth(firstLine[:strings.Index(firstLine, "╭ project-a")]); got != leftWidth+1 {
+		t.Errorf("detail pane starts at column %d, want %d: %q", got, leftWidth+1, firstLine)
+	}
+	if got := displayWidth(firstLine); got != splitPaneWidth {
+		t.Errorf("split view width = %d, want %d: %q", got, splitPaneWidth, firstLine)
+	}
+	model = updateTaskList(t, model, key("enter"))
+	if detail := plainText(model.View().Content); !strings.Contains(detail, "Task details") || !strings.Contains(detail, "project-a") {
+		t.Errorf("full-screen detail is unavailable: %q", detail)
+	}
+}
+
 func TestSplitTaskRowsKeepLongIDsVisibleWithinPane(t *testing.T) {
-	row := taskRow{bean: beans.Bean{ID: "project-extraordinarily-long-identifier", Title: "An exceptionally long title", Status: "scrapped", Type: "task"}}
-	width := (splitPaneWidth-1)*2/5 - 2
+	row := taskRow{bean: beans.Bean{ID: "project-extraordinarily-long-identifier-with-more-suffix", Title: "An exceptionally long title", Status: "scrapped", Type: "task"}}
+	width := (splitPaneWidth-1)*3/5 - 2
 	idWidth := splitTaskIDWidth([]taskRow{row}, width)
 	view := splitTaskRowView(row, nil, nil, false, width, idWidth)
 	plain := plainText(view)
@@ -923,8 +944,9 @@ func TestSplitTaskRowsKeepLongIDsVisibleWithinPane(t *testing.T) {
 	}
 	model := NewTaskList([]beans.Bean{row.bean})
 	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: splitPaneWidth, Height: 18})
+	model = updateTaskList(t, model, key("enter"))
 	if !strings.Contains(plainText(model.View().Content), row.bean.ID) {
-		t.Errorf("split detail heading does not contain full ID: %q", model.View().Content)
+		t.Errorf("full-screen detail does not contain full ID: %q", model.View().Content)
 	}
 }
 

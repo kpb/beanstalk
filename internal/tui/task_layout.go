@@ -13,7 +13,7 @@ func (m TaskList) usesSplitPane() bool {
 
 func (m TaskList) splitView() string {
 	available := m.width - 1 // Space between bordered panes.
-	treeWidth := available * 2 / 5
+	treeWidth := available * 3 / 5
 	detailWidth := available - treeWidth
 	paneHeight := max(3, m.height-1)
 	selected := m.rows[m.cursor].bean
