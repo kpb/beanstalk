@@ -31,9 +31,10 @@ func (m TaskList) treePane(width, height int) []string {
 	notices := m.notices()
 	rows := max(1, height-len(notices))
 	end := min(len(m.rows), m.offset+rows)
+	idWidth := splitTaskIDWidth(m.rows, width)
 	for index := m.offset; index < end; index++ {
 		row := m.rows[index]
-		lines = append(lines, splitTaskRowView(row, m.children, m.collapsed, index == m.cursor, width))
+		lines = append(lines, splitTaskRowView(row, m.children, m.collapsed, index == m.cursor, width, idWidth))
 	}
 	for _, notice := range notices {
 		lines = append(lines, truncate(feedbackMessage(notice), width))
@@ -337,21 +338,50 @@ func (m TaskList) statusPickerView() string {
 	return styleDetail(boundDetail(lines, m.width, m.height))
 }
 
-func splitTaskRowView(row taskRow, children, collapsed map[string]bool, selected bool, width int) string {
+func splitTaskIDWidth(rows []taskRow, width int) int {
+	idWidth := 1
+	for _, row := range rows {
+		idWidth = max(idWidth, displayWidth(terminal.Text(row.bean.ID)))
+	}
+	// Reserve eight columns for the hierarchical title at the minimum split width.
+	return min(idWidth, max(1, width-16))
+}
+
+func splitTaskRowView(row taskRow, children, collapsed map[string]bool, selected bool, width, idWidth int) string {
 	marker := " "
 	if selected {
 		marker = ">"
 	}
-	status := terminal.Text(row.bean.Status)
-	metadata := typeIndicator(row.bean.Type) + " " + statusCell(status, displayWidth(status))
-	titleWidth := max(1, width-displayWidth(metadata)-3)
+	titleWidth := max(1, width-idWidth-8)
 	title := truncate(terminal.Text(treeTitle(row, children, collapsed)), titleWidth)
-	padding := strings.Repeat(" ", max(1, width-displayWidth(marker)-1-displayWidth(title)-1-displayWidth(metadata)))
-	plain := truncate(marker+" "+title+padding+metadata, width)
+	id := truncate(terminal.Text(row.bean.ID), idWidth)
+	prefix := marker + " " + title + strings.Repeat(" ", max(0, titleWidth-displayWidth(title))) +
+		" " + id + strings.Repeat(" ", max(0, idWidth-displayWidth(id))) + " " + typeIndicator(row.bean.Type) + " "
 	if selected {
-		return styled(plain, ansiBold, ansiCyan)
+		prefix = styled(prefix, ansiBold, ansiCyan)
 	}
-	return plain
+	status := statusIndicator(row.bean.Status)
+	if color := statusStyle(row.bean.Status); color != "" {
+		status = styled(status, color)
+	}
+	return truncate(prefix+status, width)
+}
+
+func statusIndicator(status string) string {
+	switch status {
+	case "draft":
+		return "DR"
+	case "todo":
+		return "TO"
+	case "in-progress":
+		return "IP"
+	case "completed":
+		return "CO"
+	case "scrapped":
+		return "SC"
+	default:
+		return "??"
+	}
 }
 
 func typeIndicator(taskType string) string {

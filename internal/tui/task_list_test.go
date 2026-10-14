@@ -837,25 +837,107 @@ func TestTreeTitleDrawsBranchesAndContinuationGuides(t *testing.T) {
 
 func TestSplitTaskRowsLeadWithTheHierarchicalTitle(t *testing.T) {
 	row := taskRow{bean: beans.Bean{ID: "project-a", Title: "First", Status: "todo", Type: "bug"}}
-	view := splitTaskRowView(row, nil, nil, true, 40)
-	for _, want := range []string{"> First", "B ", statusLabel("todo")} {
+	view := splitTaskRowView(row, nil, nil, true, 40, splitTaskIDWidth([]taskRow{row}, 40))
+	for _, want := range []string{"> First", "project-a B ", ansiYellow + "TO" + ansiReset} {
 		if !strings.Contains(view, want) {
 			t.Errorf("split task row does not contain %q: %q", want, view)
 		}
 	}
-	if strings.Contains(view, row.bean.ID) {
-		t.Errorf("split task row includes bean ID: %q", view)
+	if got := displayWidth(view); got != 40 {
+		t.Errorf("split row width = %d, want 40: %q", got, view)
 	}
 }
 
 func TestSplitTaskRowStylesStatusCellSeparately(t *testing.T) {
 	row := taskRow{bean: beans.Bean{ID: "todo-id", Title: "todo title", Status: "todo", Type: "task"}}
-	view := splitTaskRowView(row, nil, nil, false, 40)
-	if strings.Contains(view, ansiYellow+"todo-id") || strings.Contains(view, ansiYellow+"todo title") {
-		t.Errorf("split row styles ID or title as status: %q", view)
+	for _, selected := range []bool{false, true} {
+		view := splitTaskRowView(row, nil, nil, selected, 40, splitTaskIDWidth([]taskRow{row}, 40))
+		if strings.Contains(view, ansiYellow+"todo-id") || strings.Contains(view, ansiYellow+"todo title") {
+			t.Errorf("split row styles ID or title as status: %q", view)
+		}
+		if !strings.Contains(view, ansiYellow+"TO"+ansiReset) {
+			t.Errorf("split row does not style status cell: %q", view)
+		}
 	}
-	if !strings.Contains(view, ansiYellow+"todo"+ansiReset) {
-		t.Errorf("split row does not style status cell: %q", view)
+}
+
+func TestSplitTaskRowUsesDistinctCompactStatuses(t *testing.T) {
+	for status, label := range map[string]string{
+		"draft": "DR", "todo": "TO", "in-progress": "IP", "completed": "CO", "scrapped": "SC",
+	} {
+		row := taskRow{bean: beans.Bean{ID: "project-a", Title: "First", Status: status, Type: "task"}}
+		view := splitTaskRowView(row, nil, nil, false, 40, splitTaskIDWidth([]taskRow{row}, 40))
+		if !strings.HasSuffix(view, statusStyle(status)+label+ansiReset) {
+			t.Errorf("status %q row does not end with styled %q: %q", status, label, view)
+		}
+	}
+}
+
+func TestSplitTaskRowsAlignMetadataAtMinimumAndWidePaneWidths(t *testing.T) {
+	loaded := []beans.Bean{
+		{ID: "project-a", Title: "Root", Status: "draft", Type: "milestone"},
+		{ID: "project-longer", Title: "Child with a long title", Status: "in-progress", Type: "bug", Parent: "project-a"},
+		{ID: "project-c", Title: "Last", Status: "completed", Type: "feature"},
+	}
+	for _, terminalWidth := range []int{splitPaneWidth, 160} {
+		t.Run(fmt.Sprintf("width %d", terminalWidth), func(t *testing.T) {
+			model := NewTaskList(loaded)
+			model = updateTaskList(t, model, tea.WindowSizeMsg{Width: terminalWidth, Height: 18})
+			paneWidth := (terminalWidth-1)*2/5 - 2
+			lines := model.treePane(paneWidth, 3)
+			idColumns := make([]int, 0, len(loaded))
+			typeColumns := make([]int, 0, len(loaded))
+			statusColumns := make([]int, 0, len(loaded))
+			for index, line := range lines {
+				plain := plainText(line)
+				if got := displayWidth(line); got != paneWidth {
+					t.Errorf("row %d width = %d, want %d: %q", index, got, paneWidth, line)
+				}
+				idColumns = append(idColumns, displayWidth(plain[:strings.Index(plain, loaded[index].ID)]))
+				typeColumns = append(typeColumns, displayWidth(plain[:strings.LastIndex(plain, " "+typeIndicator(loaded[index].Type)+" ")])+1)
+				statusColumns = append(statusColumns, displayWidth(plain[:strings.Index(plain, statusIndicator(loaded[index].Status))]))
+			}
+			for index := 1; index < len(loaded); index++ {
+				if idColumns[index] != idColumns[0] || typeColumns[index] != typeColumns[0] || statusColumns[index] != statusColumns[0] {
+					t.Errorf("row %d columns = %d/%d/%d, want %d/%d/%d: %q", index, idColumns[index], typeColumns[index], statusColumns[index], idColumns[0], typeColumns[0], statusColumns[0], lines[index])
+				}
+			}
+			if !strings.Contains(plainText(lines[1]), "└─") {
+				t.Errorf("child row loses hierarchy: %q", lines[1])
+			}
+		})
+	}
+}
+
+func TestSplitTaskRowsKeepLongIDsVisibleWithinPane(t *testing.T) {
+	row := taskRow{bean: beans.Bean{ID: "project-extraordinarily-long-identifier", Title: "An exceptionally long title", Status: "scrapped", Type: "task"}}
+	width := (splitPaneWidth-1)*2/5 - 2
+	idWidth := splitTaskIDWidth([]taskRow{row}, width)
+	view := splitTaskRowView(row, nil, nil, false, width, idWidth)
+	plain := plainText(view)
+	if idWidth != width-16 || !strings.Contains(plain, truncate(row.bean.ID, idWidth)) || !strings.Contains(plain, "An ex...") {
+		t.Errorf("long ID/title row = %q (id width %d)", plain, idWidth)
+	}
+	if !strings.HasSuffix(plain, " T SC") || displayWidth(view) != width {
+		t.Errorf("row loses aligned metadata or exceeds pane width: %q", view)
+	}
+	model := NewTaskList([]beans.Bean{row.bean})
+	model = updateTaskList(t, model, tea.WindowSizeMsg{Width: splitPaneWidth, Height: 18})
+	if !strings.Contains(plainText(model.View().Content), row.bean.ID) {
+		t.Errorf("split detail heading does not contain full ID: %q", model.View().Content)
+	}
+}
+
+func TestSplitTaskRowsEscapeIDAndTitle(t *testing.T) {
+	row := taskRow{bean: beans.Bean{ID: "bad\x1bid", Title: "bad\rtitle", Status: "todo", Type: "task"}}
+	view := splitTaskRowView(row, nil, nil, false, 40, splitTaskIDWidth([]taskRow{row}, 40))
+	if strings.Contains(plainText(view), "\x1b") || strings.Contains(plainText(view), "\r") {
+		t.Errorf("row contains raw terminal controls: %q", view)
+	}
+	for _, want := range []string{`bad\x1bid`, `bad\x0dtitle`} {
+		if !strings.Contains(view, want) {
+			t.Errorf("row does not contain %q: %q", want, view)
+		}
 	}
 }
 
