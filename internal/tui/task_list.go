@@ -574,6 +574,10 @@ func (m *TaskList) selectFirstChild() {
 }
 
 func treeTitle(row taskRow, children, collapsed map[string]bool) string {
+	return treeLabel(row, children, collapsed, row.bean.Title)
+}
+
+func treeLabel(row taskRow, children, collapsed map[string]bool, label string) string {
 	marker := ""
 	if children[row.bean.ID] {
 		if collapsed[row.bean.ID] {
@@ -582,12 +586,12 @@ func treeTitle(row taskRow, children, collapsed map[string]bool) string {
 	}
 	if row.depth == 0 {
 		if marker != "" {
-			return marker + " " + row.bean.Title
+			return marker + " " + label
 		}
-		return row.bean.Title
+		return label
 	}
 	if len(row.last) != row.depth {
-		return strings.Repeat("  ", row.depth) + markerPrefix(marker) + row.bean.Title
+		return strings.Repeat("  ", row.depth) + markerPrefix(marker) + label
 	}
 
 	var output strings.Builder
@@ -603,7 +607,7 @@ func treeTitle(row taskRow, children, collapsed map[string]bool) string {
 	} else {
 		output.WriteString("├─")
 	}
-	output.WriteString(markerPrefix(marker) + row.bean.Title)
+	output.WriteString(markerPrefix(marker) + label)
 	return output.String()
 }
 
