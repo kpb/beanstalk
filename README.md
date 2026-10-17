@@ -15,8 +15,9 @@ Beanstalk provides a Cobra-based CLI with text and JSON output, plus a Bubble Te
 claiming todo work, and changing task status. It reads and writes the current Beans on-disk format without bundling
 Beans' web, server, GraphQL, agent, or worktree features.
 
-Unknown front-matter keys remain intact for Beans-format compatibility; Beanstalk validates its supported metadata and
-task hierarchy when loading project task lists and milestones.
+Unknown front-matter values are preserved on task updates for Beans-format compatibility, although YAML formatting,
+comments, and front-matter line endings may change. Beanstalk validates its supported metadata and task hierarchy when
+loading project task lists and milestones.
 
 ## Architecture Decisions
 
@@ -120,6 +121,8 @@ beanstalk update project-a1b2 --body "Describe the task."
 beanstalk archive
 source <(beanstalk completion bash)
 ```
+
+If `init` fails while writing its files, it removes the files it created so initialization can be retried.
 
 [Read the CLI guide][cli-guide] for commands, shell completion, task hierarchies, milestone progress, JSON output, and
 agent workflow.

@@ -1,11 +1,11 @@
 ---
 # beanstalk-gvg9
 title: Document Beans task schema and JSON contracts
-status: todo
+status: completed
 type: task
 parent: beanstalk-gf92
 created_at: 2026-09-21T14:42:58Z
-updated_at: "2026-09-21T14:50:11Z"
+updated_at: "2026-10-17T03:35:46Z"
 ---
 The CLI guide lacks a complete task-file schema and JSON response contract, including defaults, supported enums, filename-derived IDs, archive layout, response wrappers, and list body omission.
 
