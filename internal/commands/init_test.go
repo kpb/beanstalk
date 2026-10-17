@@ -121,6 +121,65 @@ func TestInitializeReportsFilesystemFailure(t *testing.T) {
 	}
 }
 
+func TestInitializeRollsBackFailedWrites(t *testing.T) {
+	for _, failedFile := range []string{".gitignore", ".beans.yml"} {
+		t.Run(failedFile, func(t *testing.T) {
+			workingDirectory := t.TempDir()
+			failure := errors.New("simulated write failure")
+			writer := func(path string, contents []byte) (bool, error) {
+				created, err := writeInitFile(path, contents)
+				if err == nil && filepath.Base(path) == failedFile {
+					return created, failure
+				}
+				return created, err
+			}
+			if err := initializeWithWriter(workingDirectory, writer); !errors.Is(err, failure) {
+				t.Fatalf("initialize error = %v, want simulated failure", err)
+			}
+			for _, path := range []string{".beans", ".beans/.gitignore", ".beans.yml"} {
+				if _, err := os.Lstat(filepath.Join(workingDirectory, path)); !os.IsNotExist(err) {
+					t.Errorf("%s remains after failed initialization: %v", path, err)
+				}
+			}
+			if err := initialize(workingDirectory); err != nil {
+				t.Fatalf("retrying initialization: %v", err)
+			}
+			for _, path := range []string{".beans/.gitignore", ".beans.yml"} {
+				if _, err := os.Stat(filepath.Join(workingDirectory, path)); err != nil {
+					t.Errorf("checking %s after retry: %v", path, err)
+				}
+			}
+		})
+	}
+}
+
+func TestInitializeRollbackPreservesUnrelatedFiles(t *testing.T) {
+	workingDirectory := t.TempDir()
+	failure := errors.New("simulated write failure")
+	writer := func(path string, contents []byte) (bool, error) {
+		if filepath.Base(path) == ".gitignore" {
+			return writeInitFile(path, contents)
+		}
+		if err := os.WriteFile(filepath.Join(workingDirectory, ".beans", "keep"), []byte("existing work"), 0o644); err != nil {
+			t.Fatalf("creating unrelated file: %v", err)
+		}
+		return false, failure
+	}
+	if err := initializeWithWriter(workingDirectory, writer); !errors.Is(err, failure) {
+		t.Fatalf("initialize error = %v, want simulated failure", err)
+	}
+	contents, err := os.ReadFile(filepath.Join(workingDirectory, ".beans", "keep"))
+	if err != nil || string(contents) != "existing work" {
+		t.Errorf("unrelated file = %q, error = %v", contents, err)
+	}
+	if _, err := os.Stat(filepath.Join(workingDirectory, ".beans", ".gitignore")); !os.IsNotExist(err) {
+		t.Errorf("gitignore remains after failed initialization: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(workingDirectory, ".beans.yml")); !os.IsNotExist(err) {
+		t.Errorf("config created after failed initialization: %v", err)
+	}
+}
+
 func TestBaseRefUsesOriginHead(t *testing.T) {
 	workingDirectory := t.TempDir()
 	if output, err := exec.Command("git", "init", "--quiet", workingDirectory).CombinedOutput(); err != nil {

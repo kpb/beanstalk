@@ -1,11 +1,11 @@
 ---
 # beanstalk-prpl
 title: Roll back failed project initialization
-status: todo
+status: completed
 type: bug
 parent: beanstalk-gf92
 created_at: 2026-09-21T14:42:58Z
-updated_at: "2026-09-21T14:50:11Z"
+updated_at: "2026-10-17T03:24:36Z"
 ---
 init creates .beans before writing .gitignore and .beans.yml. A later failure leaves partial state that blocks a retry.
 

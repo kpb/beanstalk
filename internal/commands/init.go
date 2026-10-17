@@ -3,6 +3,7 @@ package commands
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -37,6 +38,10 @@ func newInitCommand() *cobra.Command {
 }
 
 func initialize(workingDirectory string) error {
+	return initializeWithWriter(workingDirectory, writeInitFile)
+}
+
+func initializeWithWriter(workingDirectory string, writeFile func(string, []byte) (bool, error)) (err error) {
 	beansDirectory := filepath.Join(workingDirectory, ".beans")
 	configPath := filepath.Join(workingDirectory, ".beans.yml")
 	gitignorePath := filepath.Join(beansDirectory, ".gitignore")
@@ -56,13 +61,49 @@ func initialize(workingDirectory string) error {
 	if err := os.Mkdir(beansDirectory, 0o755); err != nil {
 		return fmt.Errorf("creating .beans directory: %w", err)
 	}
-	if err := os.WriteFile(gitignorePath, []byte(beansGitignore), 0o644); err != nil {
+	var gitignoreCreated, configCreated bool
+	defer func() {
+		if err == nil {
+			return
+		}
+		if configCreated {
+			err = errors.Join(err, removeInitArtifact(configPath))
+		}
+		if gitignoreCreated {
+			err = errors.Join(err, removeInitArtifact(gitignorePath))
+		}
+		err = errors.Join(err, removeInitArtifact(beansDirectory))
+	}()
+
+	gitignoreCreated, err = writeFile(gitignorePath, []byte(beansGitignore))
+	if err != nil {
 		return fmt.Errorf("creating .beans/.gitignore: %w", err)
 	}
-	if err := os.WriteFile(configPath, []byte(defaultConfig(filepath.Base(workingDirectory), baseRef(workingDirectory))), 0o644); err != nil {
+	configCreated, err = writeFile(configPath, []byte(defaultConfig(filepath.Base(workingDirectory), baseRef(workingDirectory))))
+	if err != nil {
 		return fmt.Errorf("creating .beans.yml: %w", err)
 	}
 
+	return nil
+}
+
+// writeInitFile reports whether this invocation created the file, even if writing fails.
+func writeInitFile(path string, contents []byte) (bool, error) {
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return false, err
+	}
+	written, writeErr := file.Write(contents)
+	if writeErr == nil && written != len(contents) {
+		writeErr = io.ErrShortWrite
+	}
+	return true, errors.Join(writeErr, file.Close())
+}
+
+func removeInitArtifact(path string) error {
+	if err := os.Remove(path); err != nil {
+		return fmt.Errorf("rolling back %s: %w", path, err)
+	}
 	return nil
 }
 
