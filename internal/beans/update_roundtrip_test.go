@@ -88,7 +88,8 @@ func roundTripProject(t *testing.T, fixture string, crlf bool) (string, string, 
 		t.Fatalf("reading fixture: %v", err)
 	}
 	if crlf {
-		contents = []byte(strings.ReplaceAll(string(contents), "\n", "\r\n"))
+		// Git may already have checked out the fixture with CRLF on Windows.
+		contents = []byte(strings.ReplaceAll(strings.ReplaceAll(string(contents), "\r\n", "\n"), "\n", "\r\n"))
 	}
 	path := filepath.Join(directory, "project-a1--imported.md")
 	if err := os.WriteFile(path, contents, 0o644); err != nil {
