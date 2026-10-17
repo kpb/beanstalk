@@ -77,6 +77,24 @@ func TestCreateCommandJSON(t *testing.T) {
 	if !response.Success || response.Message != "Bean created" || response.Bean.Title != "JSON bean" || response.Bean.Path == "" {
 		t.Errorf("JSON response = %#v", response)
 	}
+	if response.Bean.Priority != "normal" {
+		t.Errorf("created priority = %q, want normal", response.Bean.Priority)
+	}
+
+	show := NewRootCommand()
+	shownOutput := new(bytes.Buffer)
+	show.SetOut(shownOutput)
+	show.SetArgs([]string{"show", response.Bean.ID, "--json"})
+	if err := show.Execute(); err != nil {
+		t.Fatalf("executing show command: %v", err)
+	}
+	var shown beans.Bean
+	if err := json.Unmarshal(shownOutput.Bytes(), &shown); err != nil {
+		t.Fatalf("decoding show JSON output: %v\n%s", err, shownOutput.String())
+	}
+	if shown.Priority != response.Bean.Priority {
+		t.Errorf("show priority = %q, create priority = %q", shown.Priority, response.Bean.Priority)
+	}
 }
 
 func TestCreateCommandSetsParent(t *testing.T) {

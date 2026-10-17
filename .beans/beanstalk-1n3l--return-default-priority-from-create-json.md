@@ -1,11 +1,11 @@
 ---
 # beanstalk-1n3l
 title: Return default priority from create JSON
-status: todo
+status: completed
 type: bug
 parent: beanstalk-gf92
 created_at: 2026-09-21T14:42:58Z
-updated_at: "2026-09-21T14:49:49Z"
+updated_at: "2026-10-17T01:04:08Z"
 ---
 create --json returns an empty priority when no priority flag is supplied, but reloads default the persisted task to normal.
 

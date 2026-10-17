@@ -18,6 +18,7 @@ import (
 
 const defaultBeanStatus = "todo"
 const defaultBeanType = "task"
+const defaultBeanPriority = "normal"
 
 var newBeanID = generateBeanID
 
@@ -109,8 +110,12 @@ func createBean(workingDirectory, title string, options createOptions) (beans.Be
 	if !beanTypes[typeName] {
 		return beans.Bean{}, fmt.Errorf("invalid type %q", typeName)
 	}
-	if options.priority != "" && !beanPriorities[options.priority] {
-		return beans.Bean{}, fmt.Errorf("invalid priority %q", options.priority)
+	priority := options.priority
+	if priority == "" {
+		priority = defaultBeanPriority
+	}
+	if !beanPriorities[priority] {
+		return beans.Bean{}, fmt.Errorf("invalid priority %q", priority)
 	}
 
 	beansPath, err := beans.Directory(workingDirectory, config)
@@ -153,7 +158,7 @@ func createBean(workingDirectory, title string, options createOptions) (beans.Be
 		if err := beans.ValidateParent(workingDirectory, id, options.parent); err != nil {
 			return beans.Bean{}, err
 		}
-		bean := beans.Bean{ID: id, Slug: slug, Title: title, Status: status, Type: typeName, Priority: options.priority, Tags: options.tags, Parent: options.parent, CreatedAt: now, UpdatedAt: now, Path: name, Body: options.body}
+		bean := beans.Bean{ID: id, Slug: slug, Title: title, Status: status, Type: typeName, Priority: priority, Tags: options.tags, Parent: options.parent, CreatedAt: now, UpdatedAt: now, Path: name, Body: options.body}
 		contents, err := beans.Render(bean)
 		if err != nil {
 			return beans.Bean{}, err
