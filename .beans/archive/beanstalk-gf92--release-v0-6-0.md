@@ -1,10 +1,10 @@
 ---
 # beanstalk-gf92
 title: Release v0.6.0
-status: in-progress
+status: completed
 type: milestone
 created_at: 2026-09-21T14:41:22Z
-updated_at: "2026-10-14T02:09:55Z"
+updated_at: "2026-10-17T15:54:34Z"
 ---
 Minor release focused on split-pane TUI improvements, robustness, data integrity, terminal safety, and documentation accuracy.
 

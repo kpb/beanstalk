@@ -142,6 +142,10 @@ mutations, displayed details, and terminal behavior.
 
 Requires Go 1.26 or newer.
 
+To develop in a VS Code dev container, install Docker and the Dev Containers extension, open this repository in VS Code,
+and run **Dev Containers: Reopen in Container**. The container provides Go 1.26 and the Go extension; it downloads Go
+modules when created. Run the commands below in the container's terminal.
+
 ```bash
 go test ./...
 go vet ./...
