@@ -371,15 +371,15 @@ func splitTaskRowView(row taskRow, children, collapsed map[string]bool, selected
 func statusIndicator(status string) string {
 	switch status {
 	case "draft":
-		return "DR"
+		return "D"
 	case "todo":
-		return "TO"
+		return "T"
 	case "in-progress":
-		return "IP"
+		return "I"
 	case "completed":
-		return "CO"
+		return "C"
 	case "scrapped":
-		return "SC"
+		return "S"
 	default:
 		return "??"
 	}
