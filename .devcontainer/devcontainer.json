@@ -1,0 +1,10 @@
+{
+  "name": "Beanstalk (Go 1.26)",
+  "image": "mcr.microsoft.com/devcontainers/go:1.26",
+  "customizations": {
+    "vscode": {
+      "extensions": ["golang.go"]
+    }
+  },
+  "postCreateCommand": "go mod download"
+}
