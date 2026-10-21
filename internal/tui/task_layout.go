@@ -352,7 +352,7 @@ func splitTaskRowView(row taskRow, children, collapsed map[string]bool, selected
 	if selected {
 		marker = ">"
 	}
-	titleWidth := max(1, width-idWidth-8)
+	titleWidth := max(1, width-idWidth-7)
 	title := truncate(terminal.Text(row.bean.Title), titleWidth)
 	id := truncate(terminal.Text(treeLabel(row, children, collapsed, row.bean.ID)), idWidth)
 	prefix := marker + " " + id + strings.Repeat(" ", max(0, idWidth-displayWidth(id))) + " " + typeIndicator(row.bean.Type) + " "

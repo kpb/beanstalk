@@ -19,7 +19,7 @@ selected task when it remains available.
 
 On terminals at least 100 columns wide, the task tree takes roughly 60% of the available space, with the selected task's
 details in a pane beside it. Rows show a tree-indented task ID with branch connectors, one-letter type (M/E/F/B/T), and
-two-letter status (DR draft, TO todo, IP in-progress, CO completed, SC scrapped), followed by an aligned task title. Long
+one-letter status (D draft, T todo, I in-progress, C completed, S scrapped), followed by an aligned task title. Long
 titles or IDs are shortened to fit the pane; full-screen details provide more space to read them. Details include the
 remaining task metadata, body, parent, children, and milestone progress when the selected task belongs to a milestone.
 Press Tab or Enter to open the selected task in a full-screen detail view at any terminal width; press Tab, Enter, or Esc
