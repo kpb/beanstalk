@@ -4,10 +4,9 @@ title: Add beanstalk upgrade for install-script installations
 status: todo
 type: epic
 created_at: 2026-10-17T00:51:15Z
-updated_at: "2026-10-21T01:50:57Z"
-parent: beanstalk-xxo5
+updated_at: "2026-10-22T00:30:07Z"
 ---
-Provide a built-in upgrade path for Beanstalk installations made by install.sh, including installations using a custom INSTALL_DIR. This is future work outside the v0.6.0 milestone.
+Provide a built-in upgrade path for Beanstalk installations made by install.sh, including installations using a custom INSTALL_DIR. This is future work outside the v0.7.0 milestone.
 
 Acceptance criteria:
 - On supported Linux and macOS platforms, detect the latest published release and upgrade the running install-script installation in its current directory, without assuming $HOME/.local/bin.
