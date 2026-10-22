@@ -17,6 +17,12 @@ and title.
 The TUI checks for task-file changes automatically, normally showing them within one second while preserving the
 selected task when it remains available.
 
+Press `/` to search task IDs, titles, and Markdown bodies using case-insensitive substring matching. Type to update
+matches, use Up/Down to browse them, and press Enter to jump to the selected task (expanding its parents if necessary).
+Esc closes search without changing the task selection. Blank queries show no matches. Search follows the current archive
+visibility: press `a` from the task list before searching to include archived tasks. Matches update on task reloads;
+if a selected match disappears, search selects the first remaining match.
+
 On terminals at least 100 columns wide, the task tree takes roughly 60% of the available space, with the selected task's
 details in a pane beside it. Rows show a tree-indented task ID with branch connectors, one-letter type (M/E/F/B/T), and
 one-letter status (D draft, T todo, I in-progress, C completed, S scrapped), followed by an aligned task title. Long
@@ -46,6 +52,7 @@ press `?` or Esc to close it.
 | Esc | Return from the full-screen detail view to the task list |
 | `r` | Reload tasks |
 | `a` | Show or hide archived tasks |
+| `/` | Search tasks |
 | `c` | Claim the selected `todo` task |
 | `s` | Change the selected task's status |
 | `?` | Show keyboard help |
@@ -66,7 +73,7 @@ exiting the TUI.
 
 ## Supported Workflow
 
-The TUI supports browsing, navigating the hierarchy, inspecting details, showing archived tasks, claiming todo tasks,
+The TUI supports browsing, searching, navigating the hierarchy, inspecting details, showing archived tasks, claiming todo tasks,
 changing task status, and manually reloading the task list. It does not create tasks or edit task metadata or bodies.
 Use the [CLI guide][cli-guide] for those workflow actions.
 

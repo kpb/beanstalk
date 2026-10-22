@@ -117,6 +117,7 @@ New tasks default to `normal` priority, which is also reported by `create --json
 ```bash
 beanstalk init
 beanstalk list --status todo
+beanstalk search "login" --json
 beanstalk update project-a1b2 --body "Describe the task."
 beanstalk archive
 source <(beanstalk completion bash)
@@ -129,7 +130,7 @@ agent workflow.
 
 ### TUI
 
-Use the TUI to browse the task hierarchy, inspect task details, claim selected todo tasks, and change task status.
+Use the TUI to browse and search the task hierarchy, inspect task details, claim selected todo tasks, and change task status.
 
 ```bash
 beanstalk

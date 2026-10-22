@@ -1,10 +1,10 @@
 ---
 # beanstalk-1me8
 title: Search beans from the TUI and CLI
-status: todo
+status: completed
 type: epic
 created_at: 2026-10-17T01:01:10Z
-updated_at: "2026-10-21T01:50:57Z"
+updated_at: "2026-10-22T00:21:24Z"
 parent: beanstalk-xxo5
 ---
 Add search as a future feature outside the v0.6.0 milestone. Use shared matching behavior for interactive TUI search and a scriptable JSON CLI command; no server API is required.

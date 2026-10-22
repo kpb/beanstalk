@@ -21,7 +21,7 @@ beanstalk show <id> --json
 beanstalk update <id> --status completed --json
 ```
 
-Do not claim support for unsupported original-Beans features, including ready filtering, search, multi-ID show, body
+Do not claim support for unsupported original-Beans features, including ready filtering, multi-ID show, body
 edits, relationships, archive, etags, or GraphQL.
 
 ## Go Development

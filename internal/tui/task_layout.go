@@ -53,7 +53,7 @@ func (m TaskList) splitShortcutHelp() string {
 	if m.updateStatus != nil {
 		help += "  " + shortcut("s", "status")
 	}
-	return help + "  " + shortcut("?", "help") + "  " + shortcut("q", "quit")
+	return help + "  " + shortcut("/", "search") + "  " + shortcut("?", "help") + "  " + shortcut("q", "quit")
 }
 
 func (m TaskList) detailView() string {
@@ -75,7 +75,7 @@ func (m TaskList) detailView() string {
 	if m.load != nil {
 		footer += "  " + shortcut("r", "reload")
 	}
-	footer += "  " + shortcut("?", "help") + "  " + shortcut("q", "quit")
+	footer += "  " + shortcut("/", "search") + "  " + shortcut("?", "help") + "  " + shortcut("q", "quit")
 	if viewportHeight > 0 && len(styledLines) > viewportHeight {
 		footer += fmt.Sprintf("  %d-%d/%d", start+1, end, len(styledLines))
 	}
@@ -202,11 +202,11 @@ func (m TaskList) helpLines() []string {
 	hints := []helpHint{
 		{"j/k or up/down", "move selection (scroll details when open)"},
 		{"h/l or left/right", "collapse, expand, parent, child"},
-		{"g/G or home/end", "first or last task"},
+		{"g/G or home/end", "first or last task (top/bottom in details)"},
 		{"tab or enter", "show selected task full screen"},
 		{"esc", "return from task details"},
-		{"home/end", "top or bottom of details when open"},
 		{"r", "reload tasks"},
+		{"/", "search tasks"},
 	}
 	if m.load != nil {
 		hints = append(hints, helpHint{"a", m.archiveToggleLabel()[2:]})

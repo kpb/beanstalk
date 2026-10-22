@@ -89,6 +89,17 @@ Filtered text output includes a matching task's ancestors to retain its tree con
 
 Archived tasks are excluded from `list`. Use `show <id>` to inspect an archived task by ID.
 
+Search task IDs, titles, and Markdown bodies with a case-insensitive substring query:
+
+```bash
+beanstalk search "login"
+beanstalk search "login" --all --json
+```
+
+Search results use the same ordering as `list`. Text output lists matching tasks without adding ancestors; JSON returns
+an array of matching bean objects without bodies (like `list --json`). Archived tasks are excluded unless `--all` is
+given. A blank or whitespace-only query returns no matches (`No beans found.` in text or `[]` in JSON).
+
 Show one task, including its Markdown body:
 
 ```bash
@@ -142,7 +153,7 @@ beanstalk completion powershell | Out-String | Invoke-Expression
 
 Beanstalk preserves unknown front-matter values so compatible Beans files retain metadata it does not use. It validates the
 status, type, and priority values it supports, plus duplicate IDs and parent links. Invalid values, missing parents,
-and parent cycles prevent `list`, `milestones`, and the TUI from loading the project with the same diagnostic.
+and parent cycles prevent `list`, `search`, `milestones`, and the TUI from loading the project with the same diagnostic.
 
 Claim a todo task atomically before working on it:
 
@@ -179,6 +190,7 @@ object and `N` for a count. Success responses vary by command:
 | --- | --- |
 | `create <title> --json` | `{"success":true,"bean":<bean>,"message":"Bean created"}`; the bean includes the effective default priority. |
 | `list --json` | Array of active bean objects, sorted and filtered by `--status`/`--type`. No ancestor-only rows and **no `body` field**, even when a task has a body; no matches return `[]`. |
+| `search <text> --json` | Array of matching bean objects in list order, without `body` or ancestor-only rows. `--all` includes archived tasks; no matches return `[]`. |
 | `show <id> --json` | One bean object, without a wrapper. Includes `body` when nonempty, including for archived beans. |
 | `update <id> ... --json` | `{"success":true,"bean":<bean>,"message":"Bean updated"}` with the updated bean and its body when nonempty. |
 | `claim <id> --json` | `{"success":true,"bean":<bean>,"message":"Bean claimed"}` with `status` set to `in-progress` and its body when nonempty. |
@@ -216,5 +228,5 @@ beanstalk update project-a1b2 --status completed --json
 
 ## Supported Scope
 
-Beanstalk intentionally does not implement ready filtering, search, multi-ID show, relationships beyond a single parent
+Beanstalk intentionally does not implement ready filtering, multi-ID show, relationships beyond a single parent
 link, etags, GraphQL, web/server features, agent plugins, or worktree automation.

@@ -37,6 +37,10 @@ type TaskList struct {
 	requestedArchived bool
 	showHelp          bool
 	showStatus        bool
+	showSearch        bool
+	searchQuery       string
+	searchMatches     []beans.Bean
+	searchCursor      int
 	cursor            int
 	offset            int
 	detailOffset      int
@@ -140,6 +144,9 @@ func (m TaskList) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		m.reloadErr = nil
 		m.showArchived = message.showArchived
 		m.replaceBeans(message.beans)
+		if m.showSearch {
+			m.refreshSearch()
+		}
 	case taskStatusUpdatedMessage:
 		if message.err != nil {
 			m.statusErr = message.err
@@ -165,11 +172,19 @@ func (m TaskList) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		if m.showStatus {
 			return m.updateStatusPicker(message)
 		}
+		if m.showSearch {
+			return m.updateSearch(message)
+		}
 		switch message.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
 		case "?":
 			m.showHelp = !m.showHelp
+		case "/":
+			m.showHelp = false
+			m.showSearch = true
+			m.searchQuery = ""
+			m.refreshSearch()
 		case "tab", "enter":
 			if len(m.rows) > 0 {
 				m.showDetails = !m.showDetails
@@ -316,6 +331,9 @@ func (m TaskList) render() string {
 	if m.showStatus {
 		return m.statusPickerView()
 	}
+	if m.showSearch {
+		return m.searchView()
+	}
 	if m.height > 0 && m.height <= fixedLines {
 		return m.compactView()
 	}
@@ -353,7 +371,7 @@ func (m TaskList) listView() string {
 	if m.claimMessage != "" {
 		fmt.Fprintf(&output, "\n%s\n", feedbackMessage(m.claimMessage))
 	}
-	help := shortcut("j/k", "navigate") + "  " + shortcut("h/l or left/right", "collapse/expand") + "  " + shortcut("g/G", "first/last")
+	help := shortcut("j/k", "navigate") + "  " + shortcut("h/l or left/right", "collapse/expand") + "  " + shortcut("g/G", "first/last") + "  " + shortcut("/", "search")
 	if m.load != nil {
 		help += "  " + shortcut("r", "reload") + "  " + shortcut("a", m.archiveToggleLabel()[2:])
 	}
